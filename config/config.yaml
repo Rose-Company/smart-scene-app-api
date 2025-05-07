@@ -1,0 +1,18 @@
+postgres:
+  host:
+  user:
+  pass:
+  db:
+  params: application_name=app-api
+  gorm_debug: debug
+
+
+google:
+  credentials_dir: ./keys/google_service_cre.json
+
+http:
+  max_idle_connection: 10
+  idle_connection_timeout: 30
+
+jwt_secret:
+token_expired_time: 604800000

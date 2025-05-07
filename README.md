@@ -1,1 +1,1 @@
-# smart-scene-app-api
+README

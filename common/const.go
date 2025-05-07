@@ -1,0 +1,41 @@
+package common
+
+import "time"
+
+const (
+	SUCCESS_STATUS           = 200
+	BAD_REQUEST_STATUS       = 400
+	SERVER_ERROR_STATUS      = 500
+	UNAUTHORIZED_STATUS      = 401
+	PERMISSION_DENIED_STATUS = 403
+	NOT_FOUND_STATUS         = 404
+	INTERNAL_SERVER_ERR      = 500
+)
+
+const (
+	PREFIX_MAIN_POSTGRES       = "MAIN_POSTGRES"
+	PREFIX_YOUPASS_DO_STORAGE  = "YOUPASS_DO_STORAGE"
+	PREFIX_CRONJOB_AUTO_CANCEL = "CRONJOB_AUTO_CANCEL"
+)
+
+const ( //must NOT edit this
+	ENV_GIN_DEBUG  = "GIN_DEBUG"
+	ENV_RABBIT_URI = "RABBIT"
+)
+
+const (
+	ENVJWTSecretKey = "JWT__SECRET_KEY"
+)
+
+var (
+	DATETIME_WITH_TIMEZONE = time.RFC3339
+)
+
+const (
+	USER_JWT_KEY = "USER_JWT_PROFILE"
+	UserId       = "user_id"
+)
+
+const (
+	POSTGRES_TABLE_NAME_COMMENT = "public.comment_v2"
+)
