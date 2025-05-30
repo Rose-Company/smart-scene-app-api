@@ -12,6 +12,8 @@ import (
 	"github.com/gin-contrib/cors"
 	_ "github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func RestHandler(sc server.ServerContext) func() *gin.Engine {
@@ -30,7 +32,10 @@ func RestHandler(sc server.ServerContext) func() *gin.Engine {
 			AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
 		}))
 
-		sc.InitAuthorizationData()
+		// Swagger documentation
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+		// sc.InitAuthorizationData()
 
 		health := router.Group("/health")
 		{

@@ -16,4 +16,5 @@ func Execute() {
 
 func InitFlags() {
 	restApiServiceCmd.PersistentFlags().Bool("start", false, "Command to start service with default port 8080")
+	
 }

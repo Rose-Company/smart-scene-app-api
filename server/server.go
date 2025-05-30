@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redsync/redsync/v4"
+	"gorm.io/gorm"
 )
 
 type service interface {
@@ -220,4 +221,12 @@ func (s *server) SetAwsSes(service *pkg.AWSSesClient) {
 
 func (s *server) GetAwsSes() *pkg.AWSSesClient {
 	return s.sesClient
+}
+
+func (s *server) DB() *gorm.DB {
+	return s.GetService(common.PREFIX_MAIN_POSTGRES).(*gorm.DB)
+}
+
+func (s *server) Ctx() context.Context {
+	return s.GetContext()
 }

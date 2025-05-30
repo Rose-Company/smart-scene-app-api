@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"log"
 	"smart-scene-app-api/config"
 	postgres2 "smart-scene-app-api/pkg/postgres"
 
@@ -20,14 +21,21 @@ func NewMainPostgres(prefix string) (error, *postgres2.Postgres) {
 		User:      config.Config.Postgres.User,
 		Password:  config.Config.Postgres.Pass,
 		Host:      config.Config.Postgres.Host,
+		Port:      config.Config.Postgres.Port,
 		Params:    config.Config.Postgres.Params,
 		Database:  config.Config.Postgres.Db,
 		DebugMode: debugMode,
 	}
 
+	log.Printf("Connecting to Postgres URI: %s\n", postgres2.GetPostgresUri(postgresParams))
+
 	pg := postgres2.Postgres{}
 	err := pg.Configure(prefix, postgresParams)
 	if err != nil {
+		return err, nil
+	}
+
+	if err := pg.Run(); err != nil {
 		return err, nil
 	}
 

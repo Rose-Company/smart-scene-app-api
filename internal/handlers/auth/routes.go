@@ -1,8 +1,7 @@
-package handlers
+package auth
 
 import (
-	authHandler "smart-scene-app-api/internal/handlers/auth"
-	services "smart-scene-app-api/internal/services"
+	"smart-scene-app-api/internal/services"
 	l "smart-scene-app-api/pkg/logger"
 	"smart-scene-app-api/server"
 
@@ -21,10 +20,12 @@ func NewHandler(sc server.ServerContext) *Handler {
 		sc:      sc,
 		service: services.NewService(sc),
 	}
-}	
+}
 
-func (h *Handler) RegisterRouter(router *gin.Engine) {
-	// Register auth routes
-	auth := authHandler.NewHandler(h.sc)
-	auth.RegisterRoutes(router)
+func (h *Handler) RegisterRoutes(router *gin.Engine) {
+	auth := router.Group("/auth")
+	{
+		auth.POST("/login", h.Login)
+		auth.POST("/register", h.Register)
+	}
 }
