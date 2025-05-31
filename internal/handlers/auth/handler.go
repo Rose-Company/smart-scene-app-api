@@ -20,7 +20,7 @@ import (
 // @Failure      401  {object}  common.Response  "Invalid credentials"
 // @Failure      404  {object}  common.Response  "User not found"
 // @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /auth/login [post]
+// @Router       /api/v1/auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req auth.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,7 +59,7 @@ func (h *Handler) Login(c *gin.Context) {
 // @Failure      400  {object}  common.Response  "Invalid request"
 // @Failure      409  {object}  common.Response  "User already exists"
 // @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /auth/register [post]
+// @Router       /api/v1/auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 	var req auth.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

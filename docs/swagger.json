@@ -18,7 +18,7 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
-        "/auth/login": {
+        "/api/v1/auth/login": {
             "post": {
                 "description": "Authenticate user and return JWT token",
                 "consumes": [
@@ -87,11 +87,207 @@
                     }
                 }
             }
+        },
+        "/api/v1/auth/register": {
+            "post": {
+                "description": "Create a new user account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "User registration details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "User registered successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/auth.RegisterResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "User already exists",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of all videos",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Get all videos",
+                "responses": {
+                    "200": {
+                        "description": "List of videos",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/video.Video"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a video by its ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "videos"
+                ],
+                "summary": "Get video by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Video details",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/video.Video"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Video not found",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
         "auth.LoginRequest": {
             "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
             "properties": {
                 "email": {
                     "type": "string"
@@ -102,6 +298,40 @@
             }
         },
         "auth.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "full_name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "auth.RegisterResponse": {
             "type": "object",
             "properties": {
                 "code": {
@@ -157,6 +387,57 @@
                     "type": "integer"
                 },
                 "total_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "video.Video": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "file_path": {
+                    "type": "string"
+                },
+                "folder": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "status": {
+                    "type": "string"
+                },
+                "thumbnail_url": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "width": {
                     "type": "integer"
                 }
             }

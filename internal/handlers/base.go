@@ -2,6 +2,7 @@ package handlers
 
 import (
 	authHandler "smart-scene-app-api/internal/handlers/auth"
+	videoHandler "smart-scene-app-api/internal/handlers/videos"
 	services "smart-scene-app-api/internal/services"
 	l "smart-scene-app-api/pkg/logger"
 	"smart-scene-app-api/server"
@@ -27,4 +28,8 @@ func (h *Handler) RegisterRouter(router *gin.Engine) {
 	// Register auth routes
 	auth := authHandler.NewHandler(h.sc)
 	auth.RegisterRoutes(router)
+
+	// Register video routes
+	video := videoHandler.NewHandler(h.sc)
+	video.RegisterRoutes(router)
 }
