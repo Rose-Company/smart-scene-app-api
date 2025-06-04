@@ -20,7 +20,16 @@ import (
 // @Failure      500  {object}  common.Response  "Internal server error"
 // @Router       /api/v1/videos [get]
 func (h *Handler) GetAllVideos(c *gin.Context) {
-	videos, err := h.service.Video.GetAllVideos()
+	var queryParams video.VideoFilterAndPagination
+	if err := c.ShouldBindQuery(&queryParams); err != nil {
+		c.JSON(http.StatusBadRequest, common.Response{
+			Message:    "Invalid query parameters",
+			ErrorDetail: err.Error(),
+		})
+		return
+	}
+
+	videos, err := h.service.Video.GetAllVideos(queryParams)
 	if err != nil {
 		h.logger.Error("Failed to get videos: " + err.Error())
 		c.JSON(http.StatusInternalServerError, common.Response{

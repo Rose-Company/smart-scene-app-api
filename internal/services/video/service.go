@@ -12,7 +12,7 @@ import (
 )
 
 type Service interface {
-	GetAllVideos() ([]videoModel.Video, error)
+	GetAllVideos(queryParams videoModel.VideoFilterAndPagination) ([]videoModel.Video, error)
 	GetVideoByID(id string) (*videoModel.Video, error)
 	CreateVideo(video videoModel.Video) (*videoModel.Video, error)
 	UpdateVideo(id string, video videoModel.Video) (*videoModel.Video, error)
@@ -29,15 +29,30 @@ func NewVideoService(sc server.ServerContext) Service {
 	}
 }
 
-func (s *videoService) GetAllVideos() ([]videoModel.Video, error) {
+func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPagination) ([]videoModel.Video, error) {
 	params := models.QueryParams{
-		Limit:  10,
-		Offset: 0,  
+		Limit:  queryParams.QueryParams.Limit,
+		Offset: queryParams.QueryParams.Offset,  
+		Selected: queryParams.QueryParams.Selected,
 		QuerySort: models.QuerySort{
 			Origin: "created_at desc", 
 		},
 	}
-	videos, err := s.videoRepo.List(s.sc.Ctx(), params)
+	videos, err := s.videoRepo.List(s.sc.Ctx(), params, func(tx *gorm.DB) {
+		if queryParams.Title != "" {
+			tx.Where("title ILIKE ?", "%"+queryParams.Title+"%")
+		}
+		if queryParams.Status != "" {
+			tx.Where("status = ?", queryParams.Status)
+		}
+		if queryParams.CreatedBy != uuid.Nil {
+			tx.Where("created_by = ?", queryParams.CreatedBy)
+		}
+		tx.Preload("CreatedBy").Preload("UpdatedBy")
+	}, func(tx *gorm.DB) {
+		tx.Order("created_at DESC")
+	})
+
 	if err != nil {
 		return nil, err
 	}

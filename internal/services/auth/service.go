@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 	userModel "smart-scene-app-api/internal/models/user"
@@ -51,7 +52,9 @@ func (s *authService) Login(email, password string) (*userModel.User, string, er
 }
 
 func (s *authService) Register(email, password, fullName string) (*userModel.User, string, error) {
-	existingUser, err := s.useRepo.GetByID(s.sc.Ctx(), email)
+	existingUser, err := s.useRepo.GetDetailByConditions(s.sc.Ctx(), func(tx *gorm.DB) {
+		tx.Where("email = ?", email)
+	})
 	if err == nil && existingUser != nil {
 		return nil, "", common.ErrUserAlreadyExists
 	}
@@ -61,7 +64,7 @@ func (s *authService) Register(email, password, fullName string) (*userModel.Use
 		return nil, "", err
 	}
 
-	endUserRoleID, err := uuid.Parse(common.ROLE_END_USER_UUID)
+	UserRoleID, err := s.GetRoleIDByName(s.sc.Ctx(), "user")
 	if err != nil {
 		return nil, "", err
 	}
@@ -73,7 +76,7 @@ func (s *authService) Register(email, password, fullName string) (*userModel.Use
 		Email:    email,
 		Password: string(hashedPassword),
 		FullName: fullName,
-		RoleID:   endUserRoleID,
+		RoleID:   UserRoleID,
 		Status:   "active",
 	}
 
@@ -88,4 +91,15 @@ func (s *authService) Register(email, password, fullName string) (*userModel.Use
 	}
 
 	return newUser, token, nil
+}
+
+
+func (s *authService) GetRoleIDByName(context context.Context,name string) (uuid.UUID, error) {
+	user, err := s.useRepo.GetDetailByConditions(context, func(tx *gorm.DB) {
+		tx.Where("name = ?", name)
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return user.RoleID, nil
 }
