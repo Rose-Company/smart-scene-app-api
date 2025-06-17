@@ -39,7 +39,7 @@ func (h *TagHandler) GetTagsByPosition(c *gin.Context) {
 	req.PositionCode = positionCode
 	req.VerifyPaging()
 
-	response, err := h.tagService.GetTagsByPosition(req)
+	response, err := h.tagService.GetTagsByPosition(c.Request.Context(), req)
 	if err != nil {
 		common.AbortWithError(c, err)
 		return
