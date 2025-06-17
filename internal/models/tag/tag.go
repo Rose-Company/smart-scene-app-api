@@ -106,7 +106,6 @@ type TagResponse struct {
 	IsActive   bool   `json:"is_active"`
 }
 
-// TagListResponse - Response cho API tags list
 type TagListResponse struct {
 	models.BaseListResponse
 	Items []TagHierarchyResponse `json:"items"`

@@ -31,10 +31,9 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	{
 		videos := protected.Group("/videos")
 		{
-			videos.GET("", h.GetAllVideos)
-			videos.GET("/listing", h.GetVideosListing)                     // New: Video listing with search/filters
-			videos.GET("/search/suggestions", h.GetVideoSearchSuggestions) // New: Search suggestions
-			videos.GET("/:id", h.GetVideoByID)
+			videos.GET("", middleware.UserAuthentication(), h.GetAllVideos)
+			videos.GET("/:id", middleware.UserAuthentication(), h.GetVideoDetail)
+
 			videos.POST("", h.CreateVideo)
 			videos.PUT("/:id", h.UpdateVideo)
 			videos.DELETE("/:id", h.DeleteVideo)
