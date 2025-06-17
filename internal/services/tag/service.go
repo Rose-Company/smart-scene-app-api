@@ -70,7 +70,7 @@ func (s *tagService) GetTagsByPosition(ctx context.Context, req tagModels.TagFil
 
 	positionCategories, err := s.tagPositionCategoryRepo.List(ctx, models.QueryParams{
 		QuerySort: models.QuerySort{
-			Origin: "tag_position_categories.sort_order.asc",
+			Origin: "sort_order.asc",
 		},
 	}, func(tx *gorm.DB) {
 		tx.Select(`

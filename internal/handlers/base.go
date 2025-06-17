@@ -6,7 +6,6 @@ import (
 	tagHandler "smart-scene-app-api/internal/handlers/tags"
 	videoHandler "smart-scene-app-api/internal/handlers/videos"
 	services "smart-scene-app-api/internal/services"
-	"smart-scene-app-api/middleware"
 	l "smart-scene-app-api/pkg/logger"
 	"smart-scene-app-api/server"
 
@@ -42,6 +41,5 @@ func (h *Handler) RegisterRouter(router *gin.Engine) {
 
 	// Register tag routes (NEW)
 	tagRoutes := router.Group("/api/v1")
-	tagRoutes.Use(middleware.AuthMiddleware())
 	tagHandler.RegisterTagRoutes(h.sc, tagRoutes)
 }

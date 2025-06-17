@@ -5,6 +5,7 @@ import (
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 	userModel "smart-scene-app-api/internal/models/user"
+	roleRepo "smart-scene-app-api/internal/repositories/role"
 	user "smart-scene-app-api/internal/repositories/user"
 	"smart-scene-app-api/pkg/jwt"
 	"smart-scene-app-api/server"
@@ -20,14 +21,16 @@ type Service interface {
 }
 
 type authService struct {
-	sc      server.ServerContext
-	useRepo user.Repository
+	sc       server.ServerContext
+	useRepo  user.Repository
+	roleRepo *roleRepo.RoleRepo
 }
 
 func NewAuthService(sc server.ServerContext) Service {
 	return &authService{
-		sc:      sc,
-		useRepo: user.NewRepository(sc.DB()),
+		sc:       sc,
+		useRepo:  user.NewRepository(sc.DB()),
+		roleRepo: roleRepo.NewRoleRepository(sc.DB()),
 	}
 }
 
@@ -93,13 +96,12 @@ func (s *authService) Register(email, password, fullName string) (*userModel.Use
 	return newUser, token, nil
 }
 
-
-func (s *authService) GetRoleIDByName(context context.Context,name string) (uuid.UUID, error) {
-	user, err := s.useRepo.GetDetailByConditions(context, func(tx *gorm.DB) {
-		tx.Where("name = ?", name)
+func (s *authService) GetRoleIDByName(context context.Context, roleName string) (uuid.UUID, error) {
+	userRole, err := s.roleRepo.GetDetailByConditions(context, func(tx *gorm.DB) {
+		tx.Where("name = ?", roleName)
 	})
 	if err != nil {
 		return uuid.Nil, err
 	}
-	return user.RoleID, nil
+	return userRole.ID, nil
 }
