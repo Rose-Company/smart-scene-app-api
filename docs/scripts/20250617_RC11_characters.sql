@@ -1,9 +1,3 @@
--- =============================================================================
--- SMART SCENE APP - HỆ THỐNG TAGS PHÂN CẤP TỐI ƯU
--- UUID chỉ khi cần thiết, INT cho hiệu suất
--- =============================================================================
-
--- 1. VIDEOS (UUID - cần cho security & distribution)
 CREATE TABLE videos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     status TEXT NOT NULL DEFAULT 'pending',
@@ -115,6 +109,7 @@ CREATE TABLE character_appearances (
     duration DECIMAL(10,3) DEFAULT 0,
     confidence DECIMAL(3,2) DEFAULT 0.0,
     is_confirmed BOOLEAN DEFAULT FALSE,
+    color_shown TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by UUID REFERENCES users(id)
 );

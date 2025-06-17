@@ -9,7 +9,6 @@ import (
 	"go.uber.org/zap"
 )
 
-
 type Handler struct {
 	sc      server.ServerContext
 	service *services.Service
@@ -25,7 +24,7 @@ func NewHandler(sc server.ServerContext) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
-	
+
 	protected := router.Group("/api/v1")
 
 	protected.Use(middleware.AuthMiddleware())
@@ -33,6 +32,8 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 		videos := protected.Group("/videos")
 		{
 			videos.GET("", h.GetAllVideos)
+			videos.GET("/listing", h.GetVideosListing)                     // New: Video listing with search/filters
+			videos.GET("/search/suggestions", h.GetVideoSearchSuggestions) // New: Search suggestions
 			videos.GET("/:id", h.GetVideoByID)
 			videos.POST("", h.CreateVideo)
 			videos.PUT("/:id", h.UpdateVideo)
