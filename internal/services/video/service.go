@@ -4,6 +4,7 @@ import (
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 	videoModel "smart-scene-app-api/internal/models/video"
+	"smart-scene-app-api/internal/repositories"
 	"smart-scene-app-api/internal/repositories/video"
 	"smart-scene-app-api/server"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type Service interface {
-	GetAllVideos(queryParams videoModel.VideoFilterAndPagination) ([]videoModel.Video, error)
+	GetAllVideos(queryParams videoModel.VideoFilterAndPagination) (*videoModel.VideoListResponse, error)
 	GetVideoDetail(id string) (*videoModel.Video, error)
 	CreateVideo(video videoModel.Video) (*videoModel.Video, error)
 	UpdateVideo(id string, video videoModel.Video) (*videoModel.Video, error)
@@ -31,41 +32,90 @@ func NewVideoService(sc server.ServerContext) Service {
 	}
 }
 
-// Fix: API Listing Videos to fit the current models.
-func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPagination) ([]videoModel.Video, error) {
-	params := models.QueryParams{
-		Limit:    queryParams.QueryParams.Limit,
-		Offset:   queryParams.QueryParams.Offset,
-		Selected: queryParams.QueryParams.Selected,
-		QuerySort: models.QuerySort{
-			Origin: "created_at desc",
-		},
+func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPagination) (*videoModel.VideoListResponse, error) {
+	if queryParams.QueryParams.Limit <= 0 {
+		queryParams.QueryParams.Limit = 10
 	}
-	videos, err := s.videoRepo.List(s.sc.Ctx(), params, func(tx *gorm.DB) {
-		if queryParams.Title != "" {
-			tx.Where("title ILIKE ?", "%"+queryParams.Title+"%")
-		}
-		if queryParams.Status != "" {
-			tx.Where("status = ?", queryParams.Status)
-		}
-		if queryParams.CreatedBy != uuid.Nil {
-			tx.Where("created_by = ?", queryParams.CreatedBy)
-		}
-		tx.Preload("CreatedBy").Preload("UpdatedBy")
-	}, func(tx *gorm.DB) {
-		tx.Order("created_at DESC")
-	})
+	if queryParams.QueryParams.Offset < 0 {
+		queryParams.QueryParams.Offset = 0
+	}
 
+	var filters []repositories.Clause
+
+	if queryParams.Title != "" {
+		filters = append(filters, func(tx *gorm.DB) {
+			tx.Where("title ILIKE ?", "%"+queryParams.Title+"%")
+		})
+	}
+	if queryParams.Status != "" {
+		filters = append(filters, func(tx *gorm.DB) {
+			tx.Where("status = ?", queryParams.Status)
+		})
+	}
+	if queryParams.CreatedBy != uuid.Nil {
+		filters = append(filters, func(tx *gorm.DB) {
+			tx.Where("created_by = ?", queryParams.CreatedBy)
+		})
+	}
+
+	total, err := s.videoRepo.Count(s.sc.Ctx(), models.QueryParams{}, filters...)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]videoModel.Video, len(videos))
-	for i, v := range videos {
+
+	page := (queryParams.QueryParams.Offset / queryParams.QueryParams.Limit) + 1
+	pageSize := queryParams.QueryParams.Limit
+
+	response := &videoModel.VideoListResponse{
+		BaseListResponse: models.BaseListResponse{
+			Total:    int(total),
+			Page:     page,
+			PageSize: pageSize,
+			Items:    []videoModel.VideoListingResponse{},
+		},
+	}
+
+	if total == 0 {
+		return response, nil
+	}
+
+	if queryParams.QueryParams.QuerySort.Origin == "" {
+		queryParams.QueryParams.QuerySort.Origin = "created_at.desc"
+	}
+
+	filters = append(filters, func(tx *gorm.DB) {
+		tx.Preload("CreatedBy").Preload("UpdatedBy")
+	})
+
+	videos, err := s.videoRepo.List(s.sc.Ctx(), queryParams.QueryParams, filters...)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]videoModel.VideoListingResponse, 0, len(videos))
+	for _, v := range videos {
 		if v != nil {
-			result[i] = *v
+			item := videoModel.VideoListingResponse{
+				ID:             v.ID,
+				Title:          v.Title,
+				ThumbnailURL:   v.ThumbnailURL,
+				Duration:       v.Duration,
+				CharacterCount: v.CharacterCount,
+				Status:         v.Status,
+				Width:          v.Width,
+				Height:         v.Height,
+				Format:         v.Format,
+				FilePath:       v.FilePath,
+				CreatedAt:      v.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt:      v.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				Tags:           []videoModel.VideoTagInfo{},
+			}
+			items = append(items, item)
 		}
 	}
-	return result, nil
+
+	response.Items = items
+	return response, nil
 }
 
 // Fix: API Get Video By ID to fit the current models.

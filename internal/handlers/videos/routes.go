@@ -26,8 +26,6 @@ func NewHandler(sc server.ServerContext) *Handler {
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 
 	protected := router.Group("/api/v1")
-
-	protected.Use(middleware.AuthMiddleware())
 	{
 		videos := protected.Group("/videos")
 		{
