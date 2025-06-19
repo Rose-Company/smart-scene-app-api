@@ -1,12 +1,14 @@
 package character
 
 import (
-	"fmt"
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 	characterModel "smart-scene-app-api/internal/models/character"
+	"smart-scene-app-api/internal/repositories"
 	characterRepo "smart-scene-app-api/internal/repositories/character"
 	"smart-scene-app-api/server"
+
+	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -31,63 +33,40 @@ func NewCharacterService(sc server.ServerContext) Service {
 }
 
 func (s *characterService) GetCharactersByVideoID(videoID string, queryParams characterModel.VideoCharacterFilterAndPagination) (*characterModel.VideoCharacterListResponse, error) {
-	// Parse video ID
-	uuidVideoID, err := uuid.Parse(videoID)
+	uuidID, err := uuid.Parse(videoID)
 	if err != nil {
 		return nil, common.ErrInvalidUUID
 	}
 
-	// Verify paging parameters
 	queryParams.VerifyPaging()
 
 	limit := queryParams.PageSize
 	offset := (queryParams.Page - 1) * queryParams.PageSize
 
-	// Get character summary for the video with filters
-	var filters []func(*gorm.DB)
+	var filters []repositories.Clause
 
-	// Add video filter
 	filters = append(filters, func(tx *gorm.DB) {
-		tx.Where("ca.video_id = ?", uuidVideoID)
+		tx.Where("video_id = ?", uuidID)
 	})
 
-	// Add character name filter if provided
 	if queryParams.CharacterName != "" {
 		filters = append(filters, func(tx *gorm.DB) {
-			tx.Where("c.name ILIKE ?", "%"+queryParams.CharacterName+"%")
+			tx.Joins("JOIN characters c ON character_appearances.character_id = c.id").
+				Where("c.name ILIKE ?", "%"+queryParams.CharacterName+"%")
 		})
 	}
 
-	// Add confidence filter if provided
 	if queryParams.MinConfidence > 0 {
 		filters = append(filters, func(tx *gorm.DB) {
-			tx.Having("AVG(ca.confidence) >= ?", queryParams.MinConfidence)
+			tx.Where("confidence >= ?", queryParams.MinConfidence)
 		})
 	}
 
-	// Add appearance count filter if provided
-	if queryParams.MinAppearances > 0 {
-		filters = append(filters, func(tx *gorm.DB) {
-			tx.Having("COUNT(ca.id) >= ?", queryParams.MinAppearances)
-		})
-	}
-
-	// Count total characters for pagination
-	var total int64
-	countQuery := s.sc.DB().
-		Table("character_appearances ca").
-		Select("COUNT(DISTINCT ca.character_id)").
-		Joins("JOIN characters c ON ca.character_id = c.id")
-
-	for _, filter := range filters {
-		filter(countQuery)
-	}
-
-	if err := countQuery.Count(&total).Error; err != nil {
+	total, err := s.appearanceRepo.Count(s.sc.Ctx(), models.QueryParams{}, filters...)
+	if err != nil {
 		return nil, err
 	}
 
-	// Prepare response
 	response := &characterModel.VideoCharacterListResponse{
 		BaseListResponse: models.BaseListResponse{
 			Total:    int(total),
@@ -97,119 +76,98 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 		},
 	}
 
-	// If no characters found, return empty response
 	if total == 0 {
 		return response, nil
 	}
 
-	// Build main query with aggregations
-	query := s.sc.DB().
-		Table("character_appearances ca").
-		Select(`
-			ca.video_id,
-			ca.character_id,
-			c.name as character_name,
-			c.avatar as character_avatar,
-			c.display_name,
-			COUNT(ca.id) as appearance_count,
-			SUM(CASE WHEN ca.end_time > ca.start_time THEN ca.end_time - ca.start_time ELSE 0 END) as total_duration,
-			MIN(ca.start_time) as first_appearance_time,
-			MAX(ca.end_time) as last_appearance_time,
-			AVG(ca.confidence) as avg_confidence,
-			MIN(ca.start_frame) as first_appearance_frame,
-			MAX(ca.end_frame) as last_appearance_frame
-		`).
-		Joins("JOIN characters c ON ca.character_id = c.id").
-		Group("ca.video_id, ca.character_id, c.name, c.avatar, c.display_name")
-
-	// Apply filters
-	for _, filter := range filters {
-		filter(query)
-	}
-
-	// Apply sorting
 	sort := queryParams.Sort
 	if sort == "" {
-		sort = "appearance_count.desc" // Default sort by appearance count descending
+		sort = "start_time.asc"
 	}
 
-	switch sort {
-	case "appearance_count.asc":
-		query = query.Order("appearance_count ASC")
-	case "appearance_count.desc":
-		query = query.Order("appearance_count DESC")
-	case "total_duration.asc":
-		query = query.Order("total_duration ASC")
-	case "total_duration.desc":
-		query = query.Order("total_duration DESC")
-	case "first_appearance.asc":
-		query = query.Order("first_appearance_time ASC")
-	case "first_appearance.desc":
-		query = query.Order("first_appearance_time DESC")
-	case "character_name.asc":
-		query = query.Order("character_name ASC")
-	case "character_name.desc":
-		query = query.Order("character_name DESC")
-	case "confidence.asc":
-		query = query.Order("avg_confidence ASC")
-	case "confidence.desc":
-		query = query.Order("avg_confidence DESC")
-	default:
-		query = query.Order("appearance_count DESC")
+	repoQueryParams := models.QueryParams{
+		Limit:  limit,
+		Offset: offset,
+		QuerySort: models.QuerySort{
+			Origin: sort,
+		},
 	}
 
-	// Apply pagination
-	query = query.Limit(limit).Offset(offset)
-
-	// Execute query
-	var summaries []struct {
-		VideoID              uuid.UUID `json:"video_id"`
-		CharacterID          uuid.UUID `json:"character_id"`
-		CharacterName        string    `json:"character_name"`
-		CharacterAvatar      string    `json:"character_avatar"`
-		DisplayName          string    `json:"display_name"`
-		AppearanceCount      int       `json:"appearance_count"`
-		TotalDuration        float64   `json:"total_duration"`
-		FirstAppearanceTime  float64   `json:"first_appearance_time"`
-		LastAppearanceTime   float64   `json:"last_appearance_time"`
-		AvgConfidence        float64   `json:"avg_confidence"`
-		FirstAppearanceFrame int       `json:"first_appearance_frame"`
-		LastAppearanceFrame  int       `json:"last_appearance_frame"`
+	preloadFunc := func(tx *gorm.DB) {
+		tx.Preload("Character")
 	}
 
-	if err := query.Scan(&summaries).Error; err != nil {
+	combinedFilter := func(tx *gorm.DB) {
+		for _, filter := range filters {
+			filter(tx)
+		}
+	}
+
+	appearances, err := s.appearanceRepo.List(s.sc.Ctx(), repoQueryParams, preloadFunc, combinedFilter)
+	if err != nil {
 		return nil, err
 	}
 
-	// Convert to response format
-	items := make([]characterModel.VideoCharacterSummary, 0, len(summaries))
-	for _, summary := range summaries {
-		// Convert time to HH:MM:SS format
-		firstAppearance := formatSecondsToTime(summary.FirstAppearanceTime)
-		lastAppearance := formatSecondsToTime(summary.LastAppearanceTime)
+	characterSummaryMap := make(map[uuid.UUID]*characterModel.VideoCharacterSummary)
+	confidenceSum := make(map[uuid.UUID]float64)
+	firstAppearanceTime := make(map[uuid.UUID]float64)
+	lastAppearanceTime := make(map[uuid.UUID]float64)
 
-		item := characterModel.VideoCharacterSummary{
-			VideoID:              summary.VideoID,
-			CharacterID:          summary.CharacterID,
-			CharacterName:        summary.CharacterName,
-			CharacterAvatar:      summary.CharacterAvatar,
-			DisplayName:          summary.DisplayName,
-			AppearanceCount:      summary.AppearanceCount,
-			TotalDuration:        summary.TotalDuration,
-			FirstAppearance:      firstAppearance,
-			LastAppearance:       lastAppearance,
-			AvgConfidence:        summary.AvgConfidence,
-			FirstAppearanceFrame: summary.FirstAppearanceFrame,
-			LastAppearanceFrame:  summary.LastAppearanceFrame,
+	for _, appearance := range appearances {
+		if appearance != nil && appearance.Character != nil {
+			charID := appearance.CharacterID
+
+			if summary, exists := characterSummaryMap[charID]; exists {
+				summary.AppearanceCount++
+				summary.TotalDuration += (appearance.EndTime - appearance.StartTime)
+				confidenceSum[charID] += appearance.Confidence
+
+				if appearance.StartTime < firstAppearanceTime[charID] {
+					firstAppearanceTime[charID] = appearance.StartTime
+					summary.FirstAppearance = formatSecondsToTime(appearance.StartTime)
+					summary.FirstAppearanceFrame = appearance.StartFrame
+				}
+
+				if appearance.EndTime > lastAppearanceTime[charID] {
+					lastAppearanceTime[charID] = appearance.EndTime
+					summary.LastAppearance = formatSecondsToTime(appearance.EndTime)
+					summary.LastAppearanceFrame = appearance.EndFrame
+				}
+
+				summary.AvgConfidence = confidenceSum[charID] / float64(summary.AppearanceCount)
+			} else {
+				firstAppearanceTime[charID] = appearance.StartTime
+				lastAppearanceTime[charID] = appearance.EndTime
+				confidenceSum[charID] = appearance.Confidence
+
+				summary := &characterModel.VideoCharacterSummary{
+					VideoID:              appearance.VideoID,
+					CharacterID:          charID,
+					CharacterName:        appearance.Character.Name,
+					CharacterAvatar:      appearance.Character.Avatar,
+					DisplayName:          appearance.Character.Name,
+					AppearanceCount:      1,
+					TotalDuration:        appearance.EndTime - appearance.StartTime,
+					FirstAppearance:      formatSecondsToTime(appearance.StartTime),
+					LastAppearance:       formatSecondsToTime(appearance.EndTime),
+					AvgConfidence:        appearance.Confidence,
+					FirstAppearanceFrame: appearance.StartFrame,
+					LastAppearanceFrame:  appearance.EndFrame,
+				}
+				characterSummaryMap[charID] = summary
+			}
 		}
-		items = append(items, item)
+	}
+
+	items := make([]characterModel.VideoCharacterSummary, 0, len(characterSummaryMap))
+	for _, summary := range characterSummaryMap {
+		items = append(items, *summary)
 	}
 
 	response.Items = items
 	return response, nil
 }
 
-// Helper function to format seconds to HH:MM:SS
 func formatSecondsToTime(seconds float64) string {
 	totalSeconds := int(seconds)
 	hours := totalSeconds / 3600

@@ -13,13 +13,14 @@ type CharacterAppearance struct {
 	CharacterID uuid.UUID   `json:"character_id" gorm:"type:uuid;not null;index"`
 	StartFrame  int         `json:"start_frame" gorm:"not null;index"`
 	EndFrame    int         `json:"end_frame" gorm:"not null;index"`
-	StartTime   string      `json:"start_time" gorm:"type:text;not null"`
-	EndTime     string      `json:"end_time" gorm:"type:text;not null"`
+	StartTime   float64     `json:"start_time" gorm:"type:decimal(10,3);not null"`
+	EndTime     float64     `json:"end_time" gorm:"type:decimal(10,3);not null"`
 	Duration    float64     `json:"duration" gorm:"type:decimal(10,3);default:0"`
+	Confidence  float64     `json:"confidence" gorm:"type:decimal(5,4);default:0"`
 	Metadata    common.JSON `json:"metadata" gorm:"type:jsonb"`
 
 	Video     interface{} `json:"video,omitempty" gorm:"foreignKey:VideoID"`
-	Character Character   `json:"character,omitempty" gorm:"foreignKey:CharacterID"`
+	Character *Character  `json:"character,omitempty" gorm:"foreignKey:CharacterID"`
 }
 
 type CharacterAppearanceFilterAndPagination struct {
@@ -73,4 +74,13 @@ type SceneSegment struct {
 	Duration       float64     `json:"duration"`
 	StartFrame     int         `json:"start_frame"`
 	EndFrame       int         `json:"end_frame"`
+}
+
+type VideoCharacterSummaryFilter struct {
+	CharacterName  string  `json:"character_name"`
+	MinConfidence  float64 `json:"min_confidence"`
+	MinAppearances int     `json:"min_appearances"`
+	Sort           string  `json:"sort"`
+	Limit          int     `json:"limit"`
+	Offset         int     `json:"offset"`
 }
