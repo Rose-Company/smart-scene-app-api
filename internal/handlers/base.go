@@ -27,19 +27,15 @@ func NewHandler(sc server.ServerContext) *Handler {
 }
 
 func (h *Handler) RegisterRouter(router *gin.Engine) {
-	// Register auth routes
 	auth := authHandler.NewHandler(h.sc)
 	auth.RegisterRoutes(router)
 
-	// Register video routes
 	video := videoHandler.NewHandler(h.sc)
 	video.RegisterRoutes(router)
 
-	// Register character routes
 	character := characterHandler.NewHandler(h.sc)
 	character.RegisterRoutes(router)
 
-	// Register tag routes (NEW)
 	tagRoutes := router.Group("/api/v1")
 	tagHandler.RegisterTagRoutes(h.sc, tagRoutes)
 }

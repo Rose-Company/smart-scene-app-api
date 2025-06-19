@@ -154,7 +154,6 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 	return response, nil
 }
 
-// Fix: API Get Video By ID to fit the current models.
 func (s *videoService) GetVideoDetail(id string) (*videoModel.Video, error) {
 	uuidID, err := uuid.Parse(id)
 	if err != nil {
@@ -167,17 +166,6 @@ func (s *videoService) GetVideoDetail(id string) (*videoModel.Video, error) {
 	if video == nil {
 		return nil, common.ErrVideoNotFound
 	}
-
-	// Load tags for the video
-	_, err = s.videoRepo.GetVideoTags(s.sc.Ctx(), uuidID)
-	if err != nil {
-		// Log error but don't fail the request
-		// video.Tags will remain nil which is handled by frontend
-	}
-
-	// Note: Video struct doesn't have Tags field, so we return as is
-	// If you need tags in video detail, consider adding Tags field to Video model
-	// or create a VideoDetailResponse struct that includes tags
 
 	return video, nil
 }
