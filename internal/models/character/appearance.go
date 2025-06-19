@@ -1,6 +1,7 @@
 package character
 
 import (
+	"smart-scene-app-api/common"
 	models "smart-scene-app-api/internal/models"
 
 	"github.com/google/uuid"
@@ -8,14 +9,14 @@ import (
 
 type CharacterAppearance struct {
 	models.Base
-	VideoID     uuid.UUID              `json:"video_id" gorm:"type:uuid;not null;index"`
-	CharacterID uuid.UUID              `json:"character_id" gorm:"type:uuid;not null;index"`
-	StartFrame  int                    `json:"start_frame" gorm:"not null;index"`
-	EndFrame    int                    `json:"end_frame" gorm:"not null;index"`
-	StartTime   string                 `json:"start_time" gorm:"type:text;not null"`
-	EndTime     string                 `json:"end_time" gorm:"type:text;not null"`
-	Duration    float64                `json:"duration" gorm:"type:decimal(10,3);default:0"`
-	Metadata    map[string]interface{} `json:"metadata" gorm:"type:jsonb"`
+	VideoID     uuid.UUID   `json:"video_id" gorm:"type:uuid;not null;index"`
+	CharacterID uuid.UUID   `json:"character_id" gorm:"type:uuid;not null;index"`
+	StartFrame  int         `json:"start_frame" gorm:"not null;index"`
+	EndFrame    int         `json:"end_frame" gorm:"not null;index"`
+	StartTime   string      `json:"start_time" gorm:"type:text;not null"`
+	EndTime     string      `json:"end_time" gorm:"type:text;not null"`
+	Duration    float64     `json:"duration" gorm:"type:decimal(10,3);default:0"`
+	Metadata    common.JSON `json:"metadata" gorm:"type:jsonb"`
 
 	Video     interface{} `json:"video,omitempty" gorm:"foreignKey:VideoID"`
 	Character Character   `json:"character,omitempty" gorm:"foreignKey:CharacterID"`

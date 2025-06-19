@@ -33,12 +33,10 @@ func NewVideoService(sc server.ServerContext) Service {
 }
 
 func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPagination) (*videoModel.VideoListResponse, error) {
-	if queryParams.QueryParams.Limit <= 0 {
-		queryParams.QueryParams.Limit = 10
-	}
-	if queryParams.QueryParams.Offset < 0 {
-		queryParams.QueryParams.Offset = 0
-	}
+	queryParams.VerifyPaging()
+
+	limit := queryParams.PageSize
+	offset := (queryParams.Page - 1) * queryParams.PageSize
 
 	var filters []repositories.Clause
 
@@ -58,19 +56,35 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 		})
 	}
 
+	if len(queryParams.TagIDs) > 0 || len(queryParams.TagCodes) > 0 {
+		filters = append(filters, func(tx *gorm.DB) {
+			subQuery := s.sc.DB().
+				Table("video_tags vt").
+				Select("vt.video_id").
+				Joins("JOIN tags t ON vt.tag_id = t.id").
+				Where("t.is_active = ?", true)
+
+			if len(queryParams.TagIDs) > 0 {
+				subQuery = subQuery.Where("vt.tag_id IN ?", queryParams.TagIDs)
+			}
+			if len(queryParams.TagCodes) > 0 {
+				subQuery = subQuery.Where("t.code IN ?", queryParams.TagCodes)
+			}
+
+			tx.Where("id IN (?)", subQuery)
+		})
+	}
+
 	total, err := s.videoRepo.Count(s.sc.Ctx(), models.QueryParams{}, filters...)
 	if err != nil {
 		return nil, err
 	}
 
-	page := (queryParams.QueryParams.Offset / queryParams.QueryParams.Limit) + 1
-	pageSize := queryParams.QueryParams.Limit
-
 	response := &videoModel.VideoListResponse{
 		BaseListResponse: models.BaseListResponse{
 			Total:    int(total),
-			Page:     page,
-			PageSize: pageSize,
+			Page:     queryParams.Page,
+			PageSize: queryParams.PageSize,
 			Items:    []videoModel.VideoListingResponse{},
 		},
 	}
@@ -79,15 +93,32 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 		return response, nil
 	}
 
-	if queryParams.QueryParams.QuerySort.Origin == "" {
-		queryParams.QueryParams.QuerySort.Origin = "created_at.desc"
+	sort := queryParams.Sort
+	if sort == "" {
+		sort = "created_at.desc"
 	}
 
-	filters = append(filters, func(tx *gorm.DB) {
-		tx.Preload("CreatedBy").Preload("UpdatedBy")
-	})
+	repoQueryParams := models.QueryParams{
+		Limit:  limit,
+		Offset: offset,
+		QuerySort: models.QuerySort{
+			Origin: sort,
+		},
+	}
 
-	videos, err := s.videoRepo.List(s.sc.Ctx(), queryParams.QueryParams, filters...)
+	videos, err := s.videoRepo.List(s.sc.Ctx(), repoQueryParams, filters...)
+	if err != nil {
+		return nil, err
+	}
+
+	videoIDs := make([]uuid.UUID, 0, len(videos))
+	for _, v := range videos {
+		if v != nil {
+			videoIDs = append(videoIDs, v.ID)
+		}
+	}
+
+	tagsMap, err := s.videoRepo.GetVideoTagsMap(s.sc.Ctx(), videoIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -95,20 +126,25 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 	items := make([]videoModel.VideoListingResponse, 0, len(videos))
 	for _, v := range videos {
 		if v != nil {
+			tags := tagsMap[v.ID]
+			if tags == nil {
+				tags = []videoModel.VideoTagInfo{}
+			}
+
 			item := videoModel.VideoListingResponse{
-				ID:             v.ID,
-				Title:          v.Title,
-				ThumbnailURL:   v.ThumbnailURL,
-				Duration:       v.Duration,
-				CharacterCount: v.CharacterCount,
-				Status:         v.Status,
-				Width:          v.Width,
-				Height:         v.Height,
-				Format:         v.Format,
-				FilePath:       v.FilePath,
-				CreatedAt:      v.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-				UpdatedAt:      v.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
-				Tags:           []videoModel.VideoTagInfo{},
+				ID:               v.ID,
+				Title:            v.Title,
+				ThumbnailURL:     v.ThumbnailURL,
+				Duration:         v.Duration,
+				CharacterCount:   v.CharacterCount,
+				Status:           v.Status,
+				FilePath:         v.FilePath,
+				CreatedAt:        v.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				UpdatedAt:        v.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				Tags:             tags,
+				VisibleTagsCount: len(tags),
+				TotalTagsCount:   len(tags),
+				Metadata:         v.Metadata,
 			}
 			items = append(items, item)
 		}
@@ -131,6 +167,18 @@ func (s *videoService) GetVideoDetail(id string) (*videoModel.Video, error) {
 	if video == nil {
 		return nil, common.ErrVideoNotFound
 	}
+
+	// Load tags for the video
+	_, err = s.videoRepo.GetVideoTags(s.sc.Ctx(), uuidID)
+	if err != nil {
+		// Log error but don't fail the request
+		// video.Tags will remain nil which is handled by frontend
+	}
+
+	// Note: Video struct doesn't have Tags field, so we return as is
+	// If you need tags in video detail, consider adding Tags field to Video model
+	// or create a VideoDetailResponse struct that includes tags
+
 	return video, nil
 }
 

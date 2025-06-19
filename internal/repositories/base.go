@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"log"
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 
@@ -46,9 +47,17 @@ func NewBaseRepository[M Model](db *gorm.DB) BaseRepository[M] {
 
 func (b *baseRepository[M]) List(ctx context.Context, params models.QueryParams, clauses ...Clause) ([]*M, error) {
 	var oList []*M
-	tx := b.db.
-		Model(b.model).
-		Offset(params.Offset)
+
+	// Get table name from model
+	var tx *gorm.DB
+	if tabler, ok := interface{}(b.model).(interface{ TableName() string }); ok {
+		tableName := tabler.TableName()
+		log.Printf("DEBUG List: Using table name: %s", tableName)
+		tx = b.db.Table(tableName).Offset(params.Offset)
+	} else {
+		log.Printf("DEBUG List: TableName() method NOT found, using Model approach")
+		tx = b.db.Model(b.model).Offset(params.Offset)
+	}
 
 	if params.Limit > 0 {
 		tx = tx.Limit(params.Limit)
@@ -70,23 +79,48 @@ func (b *baseRepository[M]) List(ctx context.Context, params models.QueryParams,
 	}
 	err := tx.Find(&oList).Error
 	if err != nil {
+		log.Printf("DEBUG List: GORM error: %v", err)
 		return nil, err
 	}
 
+	log.Printf("DEBUG List: Success - found %d records", len(oList))
 	return oList, nil
 }
 
 func (b *baseRepository[M]) Count(ctx context.Context, params models.QueryParams, clauses ...Clause) (int64, error) {
 	var count int64
-	tx := b.db.Model(b.model)
+
+	// Get table name from model
+	var tableName string
+	if tabler, ok := interface{}(b.model).(interface{ TableName() string }); ok {
+		tableName = tabler.TableName()
+		log.Printf("DEBUG Count: Using table name: %s", tableName)
+	} else {
+		log.Printf("DEBUG Count: TableName() method NOT found, using Model approach")
+		tx := b.db.Model(b.model)
+		for _, f := range clauses {
+			f(tx)
+		}
+		err := tx.Count(&count).Error
+		if err != nil {
+			log.Printf("DEBUG Count: GORM error: %v", err)
+			return 0, err
+		}
+		return count, nil
+	}
+
+	// Use Table() instead of Model() to avoid generic type issues
+	tx := b.db.Table(tableName)
 	for _, f := range clauses {
 		f(tx)
 	}
 	err := tx.Count(&count).Error
 	if err != nil {
+		log.Printf("DEBUG Count: GORM error with Table(): %v", err)
 		return 0, err
 	}
 
+	log.Printf("DEBUG Count: Success with Table() - count: %d", count)
 	return count, nil
 }
 
