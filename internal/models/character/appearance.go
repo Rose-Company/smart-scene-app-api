@@ -36,15 +36,32 @@ type CharacterAppearanceFilterAndPagination struct {
 	QueryParams       models.QueryParams `json:"query_params" form:"query_params"`
 }
 
+type VideoCharacterFilterAndPagination struct {
+	models.BaseRequestParamsUri
+	CharacterName  string  `json:"character_name" form:"character_name"`
+	MinConfidence  float64 `json:"min_confidence" form:"min_confidence"`
+	MinAppearances int     `json:"min_appearances" form:"min_appearances"`
+	Sort           string  `json:"sort" form:"sort"` // appearance_count.desc, total_duration.desc, first_appearance.asc, etc.
+}
+
 type VideoCharacterSummary struct {
-	VideoID         uuid.UUID `json:"video_id"`
-	CharacterID     uuid.UUID `json:"character_id"`
-	CharacterName   string    `json:"character_name"`
-	CharacterAvatar string    `json:"character_avatar"`
-	AppearanceCount int       `json:"appearance_count"`
-	TotalDuration   float64   `json:"total_duration"`
-	FirstAppearance string    `json:"first_appearance"`
-	LastAppearance  string    `json:"last_appearance"`
+	VideoID              uuid.UUID `json:"video_id"`
+	CharacterID          uuid.UUID `json:"character_id"`
+	CharacterName        string    `json:"character_name"`
+	CharacterAvatar      string    `json:"character_avatar"`
+	DisplayName          string    `json:"display_name"`
+	AppearanceCount      int       `json:"appearance_count"`
+	TotalDuration        float64   `json:"total_duration"`
+	FirstAppearance      string    `json:"first_appearance"`
+	LastAppearance       string    `json:"last_appearance"`
+	AvgConfidence        float64   `json:"avg_confidence"`
+	FirstAppearanceFrame int       `json:"first_appearance_frame"`
+	LastAppearanceFrame  int       `json:"last_appearance_frame"`
+}
+
+type VideoCharacterListResponse struct {
+	models.BaseListResponse
+	Items []VideoCharacterSummary `json:"items"`
 }
 
 type SceneSegment struct {

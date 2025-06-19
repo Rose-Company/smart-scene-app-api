@@ -8,19 +8,36 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetAllCharacters godoc
-// @Summary      Get all characters
-// @Description  Retrieve a list of all characters
+// GetCharactersByVideoID godoc
+// @Summary      Get characters by video ID
+// @Description  Retrieve a list of characters that appear in a specific video with appearance statistics
 // @Tags         characters
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {object}  common.Response{data=[]character.Character}  "List of characters"
+// @Param        video_id  path      string  true  "Video ID"
+// @Param        page      query     int     false "Page number (default: 1)"
+// @Param        page_size query     int     false "Page size (default: 10, max: 100)"
+// @Param        character_name query string false "Filter by character name"
+// @Param        min_confidence query number false "Minimum confidence threshold"
+// @Param        min_appearances query int   false "Minimum number of appearances"
+// @Param        sort      query     string  false "Sort by: appearance_count.desc, total_duration.desc, first_appearance.asc, character_name.asc, confidence.desc"
+// @Success      200  {object}  common.Response{data=character.VideoCharacterListResponse}  "Characters retrieved successfully"
+// @Failure      400  {object}  common.Response  "Bad request"
 // @Failure      401  {object}  common.Response  "Unauthorized"
 // @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /api/v1/characters [get]
-func (h *Handler) GetAllCharacters(c *gin.Context) {
-	var queryParams character.CharacterFilterAndPagination
+// @Router       /api/v1/videos/{video_id}/characters [get]
+func (h *Handler) GetCharactersByVideoID(c *gin.Context) {
+	videoID := c.Param("video_id")
+	if videoID == "" {
+		c.JSON(http.StatusBadRequest, common.Response{
+			Message:     "Video ID is required",
+			ErrorDetail: "The 'video_id' parameter is missing or empty",
+		})
+		return
+	}
+
+	var queryParams character.VideoCharacterFilterAndPagination
 	if err := c.ShouldBindQuery(&queryParams); err != nil {
 		c.JSON(http.StatusBadRequest, common.Response{
 			Message:     "Invalid query parameters",
@@ -29,9 +46,16 @@ func (h *Handler) GetAllCharacters(c *gin.Context) {
 		return
 	}
 
-	characters, err := h.service.Character.GetAllCharacters(queryParams)
+	characters, err := h.service.Character.GetCharactersByVideoID(videoID, queryParams)
 	if err != nil {
-		h.logger.Error("Failed to get characters: " + err.Error())
+		if err == common.ErrInvalidUUID {
+			c.JSON(http.StatusBadRequest, common.Response{
+				Message:     "Invalid video ID format",
+				ErrorDetail: err.Error(),
+			})
+			return
+		}
+		h.logger.Error("Failed to get characters by video ID: " + err.Error())
 		c.JSON(http.StatusInternalServerError, common.Response{
 			Message:     "Failed to retrieve characters",
 			ErrorDetail: err.Error(),
@@ -42,187 +66,5 @@ func (h *Handler) GetAllCharacters(c *gin.Context) {
 	c.JSON(http.StatusOK, common.Response{
 		Message: "Characters retrieved successfully",
 		Data:    characters,
-	})
-}
-
-// GetCharacterByID retrieves a character by its ID
-func (h *Handler) GetCharacterByID(c *gin.Context) {
-	characterID := c.Param("id")
-	if characterID == "" {
-		c.JSON(http.StatusBadRequest, common.Response{
-			Message:     "Character ID is required",
-			ErrorDetail: "The 'id' parameter is missing or empty",
-		})
-		return
-	}
-
-	character, err := h.service.Character.GetCharacterByID(characterID)
-	if err != nil {
-		if err == common.ErrCharacterNotFound {
-			c.JSON(http.StatusNotFound, common.Response{
-				Message:     "Character not found",
-				ErrorDetail: err.Error(),
-			})
-			return
-		}
-		h.logger.Error("Failed to get character by ID: " + err.Error())
-		c.JSON(http.StatusInternalServerError, common.Response{
-			Message:     "Failed to retrieve character",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, common.Response{
-		Message: "Character retrieved successfully",
-		Data:    character,
-	})
-}
-
-// CreateCharacter godoc
-// @Summary      Create a new character
-// @Description  Create a new character with the provided details
-// @Tags         characters
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        character  body      character.Character  true  "Character details"
-// @Success      201  {object}  common.Response{data=character.Character}  "Character created successfully"
-// @Failure      400  {object}  common.Response  "Bad request"
-// @Failure      401  {object}  common.Response  "Unauthorized"
-// @Failure      409  {object}  common.Response  "Character already exists"
-// @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /api/v1/characters [post]
-func (h *Handler) CreateCharacter(c *gin.Context) {
-	var newCharacter character.Character
-	if err := c.ShouldBindJSON(&newCharacter); err != nil {
-		c.JSON(http.StatusBadRequest, common.Response{
-			Message:     "Invalid character data",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	createdCharacter, err := h.service.Character.CreateCharacter(newCharacter)
-	if err != nil {
-		if err == common.ErrCharacterAlreadyExists {
-			c.JSON(http.StatusConflict, common.Response{
-				Message:     "Character already exists",
-				ErrorDetail: err.Error(),
-			})
-			return
-		}
-		h.logger.Error("Failed to create character: " + err.Error())
-		c.JSON(http.StatusInternalServerError, common.Response{
-			Message:     "Failed to create character",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, common.Response{
-		Message: "Character created successfully",
-		Data:    createdCharacter,
-	})
-}
-
-// UpdateCharacter godoc
-// @Summary      Update an existing character
-// @Description  Update a character by its ID with the provided details
-// @Tags         characters
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        id  path      string  true  "Character ID"
-// @Param        character  body      character.Character  true  "Updated character details"
-// @Success      200  {object}  common.Response{data=character.Character}  "Character updated successfully"
-// @Failure      400  {object}  common.Response  "Bad request"
-// @Failure      401  {object}  common.Response  "Unauthorized"
-// @Failure      404  {object}  common.Response  "Character not found"
-// @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /api/v1/characters/{id} [put]
-func (h *Handler) UpdateCharacter(c *gin.Context) {
-	characterID := c.Param("id")
-	if characterID == "" {
-		c.JSON(http.StatusBadRequest, common.Response{
-			Message:     "Character ID is required",
-			ErrorDetail: "The 'id' parameter is missing or empty",
-		})
-		return
-	}
-
-	var updatedCharacter character.Character
-	if err := c.ShouldBindJSON(&updatedCharacter); err != nil {
-		c.JSON(http.StatusBadRequest, common.Response{
-			Message:     "Invalid character data",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	character, err := h.service.Character.UpdateCharacter(characterID, updatedCharacter)
-	if err != nil {
-		if err == common.ErrCharacterNotFound {
-			c.JSON(http.StatusNotFound, common.Response{
-				Message:     "Character not found",
-				ErrorDetail: err.Error(),
-			})
-			return
-		}
-		h.logger.Error("Failed to update character: " + err.Error())
-		c.JSON(http.StatusInternalServerError, common.Response{
-			Message:     "Failed to update character",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, common.Response{
-		Message: "Character updated successfully",
-		Data:    character,
-	})
-}
-
-// DeleteCharacter godoc
-// @Summary      Delete a character
-// @Description  Delete a character by its ID
-// @Tags         characters
-// @Security     BearerAuth
-// @Param        id  path      string  true  "Character ID"
-// @Success      204  {object}  common.Response  "Character deleted successfully"
-// @Failure      400  {object}  common.Response  "Bad request"
-// @Failure      401  {object}  common.Response  "Unauthorized"
-// @Failure      404  {object}  common.Response  "Character not found"
-// @Failure      500  {object}  common.Response  "Internal server error"
-// @Router       /api/v1/characters/{id} [delete]
-func (h *Handler) DeleteCharacter(c *gin.Context) {
-	characterID := c.Param("id")
-	if characterID == "" {
-		c.JSON(http.StatusBadRequest, common.Response{
-			Message:     "Character ID is required",
-			ErrorDetail: "The 'id' parameter is missing or empty",
-		})
-		return
-	}
-
-	err := h.service.Character.DeleteCharacter(characterID)
-	if err != nil {
-		if err == common.ErrCharacterNotFound {
-			c.JSON(http.StatusNotFound, common.Response{
-				Message:     "Character not found",
-				ErrorDetail: err.Error(),
-			})
-			return
-		}
-		h.logger.Error("Failed to delete character: " + err.Error())
-		c.JSON(http.StatusInternalServerError, common.Response{
-			Message:     "Failed to delete character",
-			ErrorDetail: err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, common.Response{
-		Message: "Character deleted successfully",
 	})
 }
