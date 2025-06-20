@@ -48,8 +48,7 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 
 	if queryParams.CharacterName != "" {
 		var characterIDs []uuid.UUID
-		characters, err := s.appearanceRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
-		}, func(tx *gorm.DB) {
+		characters, err := s.characterRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
 			tx.Where("name ILIKE ?", "%"+queryParams.CharacterName+"%").Select("id")
 		})
 		if err != nil {
@@ -57,7 +56,7 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 		}
 
 		for _, char := range characters {
-			characterIDs = append(characterIDs, char.CharacterID)
+			characterIDs = append(characterIDs, char.ID)
 		}
 
 		if len(characterIDs) > 0 {
@@ -113,7 +112,6 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 	characterMap := make(map[uuid.UUID]*characterModel.Character)
 	if len(characterIDs) > 0 {
 		characters, err := s.characterRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
-		}, func(tx *gorm.DB) {
 			tx.Where("id IN ? AND is_active = ?", characterIDs, true)
 		})
 		if err != nil {

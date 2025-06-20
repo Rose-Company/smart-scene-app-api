@@ -11,15 +11,6 @@ type AppearanceRepository interface {
 	repositories.BaseRepository[character.CharacterAppearance]
 }
 
-type appearanceRepository struct {
-	repositories.BaseRepository[character.CharacterAppearance]
-	db *gorm.DB
-}
-
 func NewAppearanceRepository(db *gorm.DB) AppearanceRepository {
-	baseRepo := repositories.NewBaseRepository[character.CharacterAppearance](db)
-	return &appearanceRepository{
-		BaseRepository: baseRepo,
-		db:             db,
-	}
+	return repositories.NewBaseRepository[character.CharacterAppearance](db)
 }

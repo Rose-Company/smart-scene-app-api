@@ -1,13 +1,17 @@
 package character
 
-import "github.com/gin-gonic/gin"
+import (
+	"smart-scene-app-api/middleware"
+
+	"github.com/gin-gonic/gin"
+)
 
 func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1")
 	{
 		videos := v1.Group("/videos")
 		{
-			videos.GET("/:id/characters", h.GetCharactersByVideoID)
+			videos.GET("/:id/characters", middleware.UserAuthentication(), h.GetCharactersByVideoID)
 		}
 	}
 }
