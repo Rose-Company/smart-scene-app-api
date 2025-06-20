@@ -40,9 +40,6 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 
 	queryParams.VerifyPaging()
 
-	limit := queryParams.PageSize
-	offset := (queryParams.Page - 1) * queryParams.PageSize
-
 	var filters []repositories.Clause
 
 	filters = append(filters, func(tx *gorm.DB) {
@@ -50,51 +47,33 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 	})
 
 	if queryParams.CharacterName != "" {
-		filters = append(filters, func(tx *gorm.DB) {
-			tx.Joins("JOIN characters c ON character_appearances.character_id = c.id").
-				Where("c.name ILIKE ?", "%"+queryParams.CharacterName+"%")
+		var characterIDs []uuid.UUID
+		characters, err := s.appearanceRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
+		}, func(tx *gorm.DB) {
+			tx.Where("name ILIKE ?", "%"+queryParams.CharacterName+"%").Select("id")
 		})
-	}
+		if err != nil {
+			return nil, err
+		}
 
-	if queryParams.MinConfidence > 0 {
-		filters = append(filters, func(tx *gorm.DB) {
-			tx.Where("confidence >= ?", queryParams.MinConfidence)
-		})
-	}
+		for _, char := range characters {
+			characterIDs = append(characterIDs, char.CharacterID)
+		}
 
-	total, err := s.appearanceRepo.Count(s.sc.Ctx(), models.QueryParams{}, filters...)
-	if err != nil {
-		return nil, err
-	}
-
-	response := &characterModel.VideoCharacterListResponse{
-		BaseListResponse: models.BaseListResponse{
-			Total:    int(total),
-			Page:     queryParams.Page,
-			PageSize: queryParams.PageSize,
-			Items:    []characterModel.VideoCharacterSummary{},
-		},
-	}
-
-	if total == 0 {
-		return response, nil
-	}
-
-	sort := queryParams.Sort
-	if sort == "" {
-		sort = "start_time.asc"
-	}
-
-	repoQueryParams := models.QueryParams{
-		Limit:  limit,
-		Offset: offset,
-		QuerySort: models.QuerySort{
-			Origin: sort,
-		},
-	}
-
-	preloadFunc := func(tx *gorm.DB) {
-		tx.Preload("Character")
+		if len(characterIDs) > 0 {
+			filters = append(filters, func(tx *gorm.DB) {
+				tx.Where("character_id IN ?", characterIDs)
+			})
+		} else {
+			return &characterModel.VideoCharacterListResponse{
+				BaseListResponse: models.BaseListResponse{
+					Total:    0,
+					Page:     queryParams.Page,
+					PageSize: queryParams.PageSize,
+					Items:    []characterModel.VideoCharacterSummary{},
+				},
+			}, nil
+		}
 	}
 
 	combinedFilter := func(tx *gorm.DB) {
@@ -103,68 +82,91 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 		}
 	}
 
-	appearances, err := s.appearanceRepo.List(s.sc.Ctx(), repoQueryParams, preloadFunc, combinedFilter)
+	appearances, err := s.appearanceRepo.List(s.sc.Ctx(), models.QueryParams{}, combinedFilter)
 	if err != nil {
 		return nil, err
 	}
 
-	characterSummaryMap := make(map[uuid.UUID]*characterModel.VideoCharacterSummary)
-	confidenceSum := make(map[uuid.UUID]float64)
-	firstAppearanceTime := make(map[uuid.UUID]float64)
-	lastAppearanceTime := make(map[uuid.UUID]float64)
+	if len(appearances) == 0 {
+		return &characterModel.VideoCharacterListResponse{
+			BaseListResponse: models.BaseListResponse{
+				Total:    0,
+				Page:     queryParams.Page,
+				PageSize: queryParams.PageSize,
+				Items:    []characterModel.VideoCharacterSummary{},
+			},
+		}, nil
+	}
 
+	characterIDSet := make(map[uuid.UUID]bool)
 	for _, appearance := range appearances {
-		if appearance != nil && appearance.Character != nil {
-			charID := appearance.CharacterID
+		if appearance != nil {
+			characterIDSet[appearance.CharacterID] = true
+		}
+	}
 
-			if summary, exists := characterSummaryMap[charID]; exists {
-				summary.AppearanceCount++
-				summary.TotalDuration += (appearance.EndTime - appearance.StartTime)
-				confidenceSum[charID] += appearance.Confidence
+	characterIDs := make([]uuid.UUID, 0, len(characterIDSet))
+	for id := range characterIDSet {
+		characterIDs = append(characterIDs, id)
+	}
 
-				if appearance.StartTime < firstAppearanceTime[charID] {
-					firstAppearanceTime[charID] = appearance.StartTime
-					summary.FirstAppearance = formatSecondsToTime(appearance.StartTime)
-					summary.FirstAppearanceFrame = appearance.StartFrame
-				}
+	characterMap := make(map[uuid.UUID]*characterModel.Character)
+	if len(characterIDs) > 0 {
+		characters, err := s.characterRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
+		}, func(tx *gorm.DB) {
+			tx.Where("id IN ? AND is_active = ?", characterIDs, true)
+		})
+		if err != nil {
+			return nil, err
+		}
 
-				if appearance.EndTime > lastAppearanceTime[charID] {
-					lastAppearanceTime[charID] = appearance.EndTime
-					summary.LastAppearance = formatSecondsToTime(appearance.EndTime)
-					summary.LastAppearanceFrame = appearance.EndFrame
-				}
-
-				summary.AvgConfidence = confidenceSum[charID] / float64(summary.AppearanceCount)
-			} else {
-				firstAppearanceTime[charID] = appearance.StartTime
-				lastAppearanceTime[charID] = appearance.EndTime
-				confidenceSum[charID] = appearance.Confidence
-
-				summary := &characterModel.VideoCharacterSummary{
-					VideoID:              appearance.VideoID,
-					CharacterID:          charID,
-					CharacterName:        appearance.Character.Name,
-					CharacterAvatar:      appearance.Character.Avatar,
-					DisplayName:          appearance.Character.Name,
-					AppearanceCount:      1,
-					TotalDuration:        appearance.EndTime - appearance.StartTime,
-					FirstAppearance:      formatSecondsToTime(appearance.StartTime),
-					LastAppearance:       formatSecondsToTime(appearance.EndTime),
-					AvgConfidence:        appearance.Confidence,
-					FirstAppearanceFrame: appearance.StartFrame,
-					LastAppearanceFrame:  appearance.EndFrame,
-				}
-				characterSummaryMap[charID] = summary
+		for _, char := range characters {
+			if char != nil {
+				characterMap[char.ID] = char
 			}
 		}
 	}
 
-	items := make([]characterModel.VideoCharacterSummary, 0, len(characterSummaryMap))
-	for _, summary := range characterSummaryMap {
-		items = append(items, *summary)
+	characters := make([]characterModel.Character, 0, len(characterMap))
+	for _, character := range characterMap {
+		if character != nil {
+			characters = append(characters, *character)
+		}
 	}
 
-	response.Items = items
+	total := len(characters)
+	offset := (queryParams.Page - 1) * queryParams.PageSize
+	limit := queryParams.PageSize
+
+	if offset >= total {
+		characters = []characterModel.Character{}
+	} else if offset+limit > total {
+		characters = characters[offset:]
+	} else {
+		characters = characters[offset : offset+limit]
+	}
+
+	items := make([]characterModel.VideoCharacterSummary, 0, len(characters))
+
+	for _, character := range characters {
+		item := characterModel.VideoCharacterSummary{
+			VideoID:         uuidID,
+			CharacterID:     character.ID,
+			CharacterName:   character.Name,
+			CharacterAvatar: character.Avatar,
+		}
+		items = append(items, item)
+	}
+
+	response := &characterModel.VideoCharacterListResponse{
+		BaseListResponse: models.BaseListResponse{
+			Total:    len(items),
+			Page:     queryParams.Page,
+			PageSize: queryParams.PageSize,
+		},
+		Items: items,
+	}
+
 	return response, nil
 }
 

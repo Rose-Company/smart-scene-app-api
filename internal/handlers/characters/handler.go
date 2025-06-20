@@ -28,11 +28,11 @@ import (
 // @Failure      500  {object}  common.Response  "Internal server error"
 // @Router       /api/v1/videos/{video_id}/characters [get]
 func (h *Handler) GetCharactersByVideoID(c *gin.Context) {
-	videoID := c.Param("video_id")
+	videoID := c.Param("id")
 	if videoID == "" {
 		c.JSON(http.StatusBadRequest, common.Response{
 			Message:     "Video ID is required",
-			ErrorDetail: "The 'video_id' parameter is missing or empty",
+			ErrorDetail: "The 'id' parameter is missing or empty",
 		})
 		return
 	}

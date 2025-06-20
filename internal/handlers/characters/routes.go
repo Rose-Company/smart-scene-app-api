@@ -7,7 +7,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 	{
 		videos := v1.Group("/videos")
 		{
-			videos.GET("/:video_id/characters", h.GetCharactersByVideoID)
+			videos.GET("/:id/characters", h.GetCharactersByVideoID)
 		}
 	}
 }

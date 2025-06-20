@@ -3,12 +3,15 @@ package character
 import (
 	"smart-scene-app-api/common"
 	models "smart-scene-app-api/internal/models"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 type CharacterAppearance struct {
-	models.Base
+	ID          int         `json:"id" gorm:"primaryKey;autoIncrement"`
+	CreatedAt   time.Time   `json:"created_at" gorm:"type:timestamp;not null;default:now()"`
+	CreatedBy   uuid.UUID   `json:"created_by" gorm:"type:uuid;not null;index"`
 	VideoID     uuid.UUID   `json:"video_id" gorm:"type:uuid;not null;index"`
 	CharacterID uuid.UUID   `json:"character_id" gorm:"type:uuid;not null;index"`
 	StartFrame  int         `json:"start_frame" gorm:"not null;index"`
@@ -20,7 +23,11 @@ type CharacterAppearance struct {
 	Metadata    common.JSON `json:"metadata" gorm:"type:jsonb"`
 
 	Video     interface{} `json:"video,omitempty" gorm:"foreignKey:VideoID"`
-	Character *Character  `json:"character,omitempty" gorm:"foreignKey:CharacterID"`
+	Character *Character  `json:"character,omitempty" gorm:"foreignKey:CharacterID;references:ID"`
+}
+
+func (c *CharacterAppearance) TableName() string {
+	return "character_appearances"
 }
 
 type CharacterAppearanceFilterAndPagination struct {
@@ -46,18 +53,10 @@ type VideoCharacterFilterAndPagination struct {
 }
 
 type VideoCharacterSummary struct {
-	VideoID              uuid.UUID `json:"video_id"`
-	CharacterID          uuid.UUID `json:"character_id"`
-	CharacterName        string    `json:"character_name"`
-	CharacterAvatar      string    `json:"character_avatar"`
-	DisplayName          string    `json:"display_name"`
-	AppearanceCount      int       `json:"appearance_count"`
-	TotalDuration        float64   `json:"total_duration"`
-	FirstAppearance      string    `json:"first_appearance"`
-	LastAppearance       string    `json:"last_appearance"`
-	AvgConfidence        float64   `json:"avg_confidence"`
-	FirstAppearanceFrame int       `json:"first_appearance_frame"`
-	LastAppearanceFrame  int       `json:"last_appearance_frame"`
+	VideoID         uuid.UUID `json:"video_id"`
+	CharacterID     uuid.UUID `json:"character_id"`
+	CharacterName   string    `json:"character_name"`
+	CharacterAvatar string    `json:"character_avatar"`
 }
 
 type VideoCharacterListResponse struct {
