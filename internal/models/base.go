@@ -3,6 +3,9 @@ package models
 import (
 	"smart-scene-app-api/common"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type QuerySort struct {
@@ -37,6 +40,13 @@ type BaseListResponse struct {
 	Extra    interface{} `json:"extra"`
 }
 
+type Base struct {
+	ID        uuid.UUID      `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
+
 func (b *BaseRequestParamsUri) VerifyPaging() {
 	if b.Page <= 0 {
 		b.Page = 1
@@ -45,3 +55,4 @@ func (b *BaseRequestParamsUri) VerifyPaging() {
 		b.PageSize = 10
 	}
 }
+

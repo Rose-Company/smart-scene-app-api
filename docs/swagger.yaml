@@ -1,0 +1,559 @@
+basePath: /
+definitions:
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.LoginResponse:
+    properties:
+      code:
+        type: integer
+      id:
+        type: string
+      token:
+        type: string
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  auth.RegisterResponse:
+    properties:
+      code:
+        type: integer
+      id:
+        type: string
+      token:
+        type: string
+    type: object
+  character.Character:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      metadata:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  common.LOGIC_CODE:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - REQUEST_SUCCESS
+    - REQUEST_FAILED
+  common.Response:
+    properties:
+      code:
+        $ref: '#/definitions/common.LOGIC_CODE'
+      data: {}
+      error_code:
+        type: string
+      error_detail:
+        type: string
+      message:
+        type: string
+      paging:
+        $ref: '#/definitions/common.paging'
+    type: object
+  common.paging:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_count:
+        type: integer
+    type: object
+  video.Video:
+    properties:
+      analysis:
+        description: Relations (will be loaded when needed)
+      analysis_version:
+        description: Track AI model version
+        type: string
+      character_appearances: {}
+      character_count:
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        type: string
+      duration:
+        type: integer
+      file_path:
+        type: string
+      folder:
+        type: string
+      format:
+        type: string
+      frame_rate:
+        type: number
+      has_character_analysis:
+        description: Character Analysis Related
+        type: boolean
+      height:
+        type: integer
+      id:
+        type: string
+      metadata:
+        additionalProperties: true
+        type: object
+      status:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      width:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Server for Smart Scene Application
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Smart Scene App API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: Login to the application
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.RegisterResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/characters:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all characters
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of characters
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/character.Character'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all characters
+      tags:
+      - characters
+    post:
+      consumes:
+      - application/json
+      description: Create a new character with the provided details
+      parameters:
+      - description: Character details
+        in: body
+        name: character
+        required: true
+        schema:
+          $ref: '#/definitions/character.Character'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Character created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.Character'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "409":
+          description: Character already exists
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new character
+      tags:
+      - characters
+  /api/v1/characters/{id}:
+    delete:
+      description: Delete a character by its ID
+      parameters:
+      - description: Character ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Character deleted successfully
+          schema:
+            $ref: '#/definitions/common.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Character not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a character
+      tags:
+      - characters
+    put:
+      consumes:
+      - application/json
+      description: Update a character by its ID with the provided details
+      parameters:
+      - description: Character ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated character details
+        in: body
+        name: character
+        required: true
+        schema:
+          $ref: '#/definitions/character.Character'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Character updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.Character'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Character not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Update an existing character
+      tags:
+      - characters
+  /api/v1/videos:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all videos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of videos
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/video.Video'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all videos
+      tags:
+      - videos
+    post:
+      consumes:
+      - application/json
+      description: Create a new video with the provided details
+      parameters:
+      - description: Video details
+        in: body
+        name: video
+        required: true
+        schema:
+          $ref: '#/definitions/video.Video'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Video created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new video
+      tags:
+      - videos
+  /api/v1/videos/{id}:
+    delete:
+      description: Delete a video by its ID
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: Video deleted successfully
+          schema:
+            $ref: '#/definitions/common.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a video
+      tags:
+      - videos
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a video by its ID
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video details
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get video by ID
+      tags:
+      - videos
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

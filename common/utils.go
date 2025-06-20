@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -28,6 +29,39 @@ var (
 		return ErrorWrapper(fmt.Sprintf(ERR_PARSE_VALUE_ENV, prefix), err)
 	}
 )
+
+type JSON map[string]interface{}
+
+func (j *JSON) Scan(value interface{}) error {
+	if value == nil {
+		*j = make(map[string]interface{})
+		return nil
+	}
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into JSON", value)
+	}
+
+	if len(bytes) == 0 {
+		*j = make(map[string]interface{})
+		return nil
+	}
+
+	return json.Unmarshal(bytes, j)
+}
+
+func (j JSON) Value() (driver.Value, error) {
+	if j == nil {
+		return nil, nil
+	}
+	return json.Marshal(j)
+}
 
 func ConvertStruct2Map(ctx context.Context, obj interface{}) map[string]interface{} {
 	m := map[string]interface{}{}

@@ -1,6 +1,10 @@
 package handlers
 
 import (
+	authHandler "smart-scene-app-api/internal/handlers/auth"
+	characterHandler "smart-scene-app-api/internal/handlers/characters"
+	tagHandler "smart-scene-app-api/internal/handlers/tags"
+	videoHandler "smart-scene-app-api/internal/handlers/videos"
 	services "smart-scene-app-api/internal/services"
 	l "smart-scene-app-api/pkg/logger"
 	"smart-scene-app-api/server"
@@ -22,8 +26,16 @@ func NewHandler(sc server.ServerContext) *Handler {
 	}
 }
 
-func (h *Handler) RegisterRouter(c *gin.Engine) {
-	// authConfig := h.sc.GetAuthConfig()
-	// authenticator := middleware.NewAuthenticator(authConfig)
+func (h *Handler) RegisterRouter(router *gin.Engine) {
+	auth := authHandler.NewHandler(h.sc)
+	auth.RegisterRoutes(router)
 
+	video := videoHandler.NewHandler(h.sc)
+	video.RegisterRoutes(router)
+
+	character := characterHandler.NewHandler(h.sc)
+	character.RegisterRoutes(router)
+
+	tagRoutes := router.Group("/api/v1")
+	tagHandler.RegisterTagRoutes(h.sc, tagRoutes)
 }

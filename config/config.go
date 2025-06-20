@@ -1,14 +1,15 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
+	"os"
 	"strings"
 
 	_ "embed"
 
 	l "smart-scene-app-api/pkg/logger"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -20,7 +21,7 @@ var defaultConfig []byte
 type Schema struct {
 	Postgres struct {
 		Host      string `mapstructure:"host"`
-		Port      int    `mapstructure:"port"`
+		Port      string `mapstructure:"port"`
 		User      string `mapstructure:"user"`
 		Pass      string `mapstructure:"pass"`
 		Db        string `mapstructure:"db"`
@@ -56,6 +57,10 @@ type Schema struct {
 
 	JwtSecret        string `mapstructure:"jwt_secret"`
 	TokenExpiredTime int64  `mapstructure:"token_expired_time"`
+
+	JWT struct {
+		SecretKey string `mapstructure:"secret_key"`
+	} `mapstructure:"jwt"`
 }
 
 // Redis ...
@@ -70,8 +75,17 @@ var Config Schema
 
 func init() {
 	ll := l.New()
+
+	// ✅ Load .env file trước
+	if err := godotenv.Load(); err != nil {
+		ll.Info("No .env file found, continuing...")
+	}
+
+	// ✅ Expand biến môi trường trong config.yaml (nhúng sẵn)
+	expanded := os.ExpandEnv(string(defaultConfig))
+	
 	viper.SetConfigType("yaml")
-	err := viper.ReadConfig(bytes.NewBuffer(defaultConfig))
+	err := viper.ReadConfig(strings.NewReader(expanded))
 	if err != nil {
 		ll.Fatal("Failed to read viper config", l.Error(err))
 	}
