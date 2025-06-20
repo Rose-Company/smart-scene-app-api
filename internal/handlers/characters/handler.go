@@ -4,8 +4,10 @@ import (
 	"net/http"
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models/character"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // GetCharactersByVideoID godoc
@@ -107,6 +109,36 @@ func (h *Handler) GetVideoScenesWithCharacters(c *gin.Context) {
 			ErrorDetail: err.Error(),
 		})
 		return
+	}
+
+	// Parse include characters
+	for _, charStr := range queryParams.IncludeCharactersStr {
+		if charStr != "" {
+			charUUID, err := uuid.Parse(strings.TrimSpace(charStr))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, common.Response{
+					Message:     "Invalid include character UUID",
+					ErrorDetail: "Character ID '" + charStr + "' is not a valid UUID",
+				})
+				return
+			}
+			queryParams.IncludeCharacters = append(queryParams.IncludeCharacters, charUUID)
+		}
+	}
+
+	// Parse exclude characters
+	for _, charStr := range queryParams.ExcludeCharactersStr {
+		if charStr != "" {
+			charUUID, err := uuid.Parse(strings.TrimSpace(charStr))
+			if err != nil {
+				c.JSON(http.StatusBadRequest, common.Response{
+					Message:     "Invalid exclude character UUID",
+					ErrorDetail: "Character ID '" + charStr + "' is not a valid UUID",
+				})
+				return
+			}
+			queryParams.ExcludeCharacters = append(queryParams.ExcludeCharacters, charUUID)
+		}
 	}
 
 	scenes, err := h.service.Character.GetVideoScenesWithCharacters(videoID, queryParams)

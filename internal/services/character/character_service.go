@@ -10,9 +10,6 @@ import (
 
 	"fmt"
 
-	"math"
-	"sort"
-
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -151,38 +148,28 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 
 	queryParams.VerifyPaging()
 
-	filter := func(tx *gorm.DB) {
-		tx.Where("video_id = ?", uuidID).
-			Preload("Character", "is_active = ?", true).
-			Order("start_time ASC")
-	}
+	fmt.Printf("[DEBUG] GetVideoScenesWithCharacters - VideoID: %s\n", videoID)
+	fmt.Printf("[DEBUG] Include Characters: %v\n", queryParams.IncludeCharacters)
+	fmt.Printf("[DEBUG] Exclude Characters: %v\n", queryParams.ExcludeCharacters)
+	fmt.Printf("[DEBUG] Page: %d, PageSize: %d\n", queryParams.Page, queryParams.PageSize)
 
-	appearances, err := s.appearanceRepo.List(s.sc.Ctx(), models.QueryParams{}, filter)
+	timeSegments, err := s.appearanceRepo.FindTimeSegmentsWithCharacters(s.sc.Ctx(), uuidID, queryParams.IncludeCharacters, queryParams.ExcludeCharacters)
 	if err != nil {
+		fmt.Printf("[DEBUG] Error in repository time segment finding: %v\n", err)
 		return nil, err
 	}
 
-	if len(appearances) == 0 {
-		return &characterModel.VideoSceneListResponse{
-			BaseListResponse: models.BaseListResponse{
-				Total:    0,
-				Page:     queryParams.Page,
-				PageSize: queryParams.PageSize,
-			},
-			Items: []characterModel.VideoScene{},
-		}, nil
-	}
+	fmt.Printf("[DEBUG] Repository returned time segments: %d\n", len(timeSegments))
 
-	// Find time segments that match include/exclude criteria
-	validSegments := s.findValidTimeSegments(appearances, queryParams.IncludeCharacters, queryParams.ExcludeCharacters)
+	scenes := s.mapTimeSegmentsToVideoScenes(uuidID, timeSegments)
 
-	// Convert segments to scenes
-	scenes := s.convertSegmentsToScenes(validSegments, uuidID)
+	fmt.Printf("[DEBUG] Mapped scenes: %d\n", len(scenes))
 
-	// Apply pagination
 	total := len(scenes)
 	offset := (queryParams.Page - 1) * queryParams.PageSize
 	limit := queryParams.PageSize
+
+	fmt.Printf("[DEBUG] Pagination - Total: %d, Offset: %d, Limit: %d\n", total, offset, limit)
 
 	if offset >= total {
 		scenes = []characterModel.VideoScene{}
@@ -201,220 +188,33 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 		Items: scenes,
 	}
 
+	fmt.Printf("[DEBUG] Final response - Items: %d\n", len(response.Items))
 	return response, nil
 }
 
-func (s *characterService) filterScenesByCharacters(scenes []characterModel.VideoScene, includeCharacters, excludeCharacters []uuid.UUID) []characterModel.VideoScene {
-	return []characterModel.VideoScene{}
-}
-
-// TimeSegment represents a time interval with characters present
-type TimeSegment struct {
-	StartTime  float64
-	EndTime    float64
-	Characters map[uuid.UUID]*characterModel.CharacterAppearance
-}
-
-// findValidTimeSegments finds time segments where include characters are present and exclude characters are absent
-func (s *characterService) findValidTimeSegments(appearances []*characterModel.CharacterAppearance, includeCharacters, excludeCharacters []uuid.UUID) []TimeSegment {
-	if len(includeCharacters) == 0 {
-		return []TimeSegment{}
-	}
-
-	// Step 1: Create time intervals for each include character
-	includeIntervals := make(map[uuid.UUID][]TimeSegment)
-	for _, charID := range includeCharacters {
-		intervals := []TimeSegment{}
-		for _, appearance := range appearances {
-			if appearance.CharacterID == charID && appearance.Character != nil {
-				intervals = append(intervals, TimeSegment{
-					StartTime: appearance.StartTime,
-					EndTime:   appearance.EndTime,
-					Characters: map[uuid.UUID]*characterModel.CharacterAppearance{
-						charID: appearance,
-					},
-				})
-			}
-		}
-		includeIntervals[charID] = intervals
-	}
-
-	// Step 2: Find intersection of all include character intervals
-	var intersectionSegments []TimeSegment
-	if len(includeIntervals) > 0 {
-		// Start with first character's intervals
-		firstCharID := includeCharacters[0]
-		intersectionSegments = includeIntervals[firstCharID]
-
-		// Intersect with each subsequent character's intervals
-		for i := 1; i < len(includeCharacters); i++ {
-			charID := includeCharacters[i]
-			intersectionSegments = s.intersectTimeSegments(intersectionSegments, includeIntervals[charID])
-		}
-	}
-
-	// Step 3: Create exclude intervals if any
-	excludeIntervals := []TimeSegment{}
-	for _, charID := range excludeCharacters {
-		for _, appearance := range appearances {
-			if appearance.CharacterID == charID && appearance.Character != nil {
-				excludeIntervals = append(excludeIntervals, TimeSegment{
-					StartTime: appearance.StartTime,
-					EndTime:   appearance.EndTime,
-					Characters: map[uuid.UUID]*characterModel.CharacterAppearance{
-						charID: appearance,
-					},
-				})
-			}
-		}
-	}
-
-	// Step 4: Remove exclude intervals from intersection
-	validSegments := s.subtractTimeSegments(intersectionSegments, excludeIntervals)
-
-	// Step 5: Merge adjacent segments and add all character info
-	finalSegments := s.mergeAndEnrichSegments(validSegments, appearances)
-
-	return finalSegments
-}
-
-// intersectTimeSegments finds the intersection of two sets of time segments
-func (s *characterService) intersectTimeSegments(segments1, segments2 []TimeSegment) []TimeSegment {
-	var result []TimeSegment
-
-	for _, seg1 := range segments1 {
-		for _, seg2 := range segments2 {
-			// Find overlap
-			startTime := math.Max(seg1.StartTime, seg2.StartTime)
-			endTime := math.Min(seg1.EndTime, seg2.EndTime)
-
-			if startTime < endTime { // Valid overlap
-				// Merge character information
-				characters := make(map[uuid.UUID]*characterModel.CharacterAppearance)
-				for charID, appearance := range seg1.Characters {
-					characters[charID] = appearance
-				}
-				for charID, appearance := range seg2.Characters {
-					characters[charID] = appearance
-				}
-
-				result = append(result, TimeSegment{
-					StartTime:  startTime,
-					EndTime:    endTime,
-					Characters: characters,
-				})
-			}
-		}
-	}
-
-	return result
-}
-
-// subtractTimeSegments removes exclude segments from include segments
-func (s *characterService) subtractTimeSegments(includeSegments, excludeSegments []TimeSegment) []TimeSegment {
-	result := includeSegments
-
-	for _, excludeSegment := range excludeSegments {
-		var newResult []TimeSegment
-
-		for _, includeSegment := range result {
-			// Check if there's overlap
-			if includeSegment.EndTime <= excludeSegment.StartTime || includeSegment.StartTime >= excludeSegment.EndTime {
-				// No overlap, keep the segment
-				newResult = append(newResult, includeSegment)
-			} else {
-				// There's overlap, split the segment
-
-				// Part before exclude segment
-				if includeSegment.StartTime < excludeSegment.StartTime {
-					newResult = append(newResult, TimeSegment{
-						StartTime:  includeSegment.StartTime,
-						EndTime:    excludeSegment.StartTime,
-						Characters: includeSegment.Characters,
-					})
-				}
-
-				// Part after exclude segment
-				if includeSegment.EndTime > excludeSegment.EndTime {
-					newResult = append(newResult, TimeSegment{
-						StartTime:  excludeSegment.EndTime,
-						EndTime:    includeSegment.EndTime,
-						Characters: includeSegment.Characters,
-					})
-				}
-			}
-		}
-
-		result = newResult
-	}
-
-	return result
-}
-
-// mergeAndEnrichSegments merges adjacent segments and enriches with all character information
-func (s *characterService) mergeAndEnrichSegments(segments []TimeSegment, allAppearances []*characterModel.CharacterAppearance) []TimeSegment {
-	if len(segments) == 0 {
-		return segments
-	}
-
-	// Sort segments by start time
-	sort.Slice(segments, func(i, j int) bool {
-		return segments[i].StartTime < segments[j].StartTime
-	})
-
-	var enrichedSegments []TimeSegment
-
-	for _, segment := range segments {
-		// Find all characters present in this time segment
-		characters := make(map[uuid.UUID]*characterModel.CharacterAppearance)
-
-		for _, appearance := range allAppearances {
-			if appearance.Character != nil &&
-				appearance.StartTime < segment.EndTime &&
-				appearance.EndTime > segment.StartTime {
-				// Character appears in this segment
-				characters[appearance.CharacterID] = appearance
-			}
-		}
-
-		enrichedSegments = append(enrichedSegments, TimeSegment{
-			StartTime:  segment.StartTime,
-			EndTime:    segment.EndTime,
-			Characters: characters,
-		})
-	}
-
-	return enrichedSegments
-}
-
-// convertSegmentsToScenes converts time segments to video scenes
-func (s *characterService) convertSegmentsToScenes(segments []TimeSegment, videoID uuid.UUID) []characterModel.VideoScene {
+func (s *characterService) mapTimeSegmentsToVideoScenes(videoID uuid.UUID, timeSegments []characterModel.TimeSegmentResult) []characterModel.VideoScene {
 	var scenes []characterModel.VideoScene
+	sceneIndex := 1
 
-	for i, segment := range segments {
+	for _, segment := range timeSegments {
 		var sceneCharacters []characterModel.VideoSceneCharacter
-
-		for _, appearance := range segment.Characters {
+		for _, char := range segment.Characters {
 			sceneCharacters = append(sceneCharacters, characterModel.VideoSceneCharacter{
-				CharacterID:     appearance.CharacterID,
-				CharacterName:   appearance.Character.Name,
-				CharacterAvatar: appearance.Character.Avatar,
-				Confidence:      appearance.Confidence,
-				StartTime:       math.Max(appearance.StartTime, segment.StartTime),
-				EndTime:         math.Min(appearance.EndTime, segment.EndTime),
-				StartFrame:      appearance.StartFrame,
-				EndFrame:        appearance.EndFrame,
+				CharacterID:     char.CharacterID,
+				CharacterName:   char.CharacterName,
+				CharacterAvatar: char.CharacterAvatar,
+				Confidence:      char.Confidence,
+				StartTime:       segment.StartTime,
+				EndTime:         segment.EndTime,
 			})
 		}
 
 		scene := characterModel.VideoScene{
 			VideoID:            videoID,
-			SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", i+1, segment.StartTime, segment.EndTime),
+			SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", sceneIndex, segment.StartTime, segment.EndTime),
 			StartTime:          segment.StartTime,
 			EndTime:            segment.EndTime,
-			Duration:           segment.EndTime - segment.StartTime,
-			StartFrame:         0, // Will be calculated from start time if needed
-			EndFrame:           0, // Will be calculated from end time if needed
+			Duration:           segment.Duration,
 			CharacterCount:     len(sceneCharacters),
 			Characters:         sceneCharacters,
 			StartTimeFormatted: formatSecondsToTime(segment.StartTime),
@@ -422,6 +222,10 @@ func (s *characterService) convertSegmentsToScenes(segments []TimeSegment, video
 		}
 
 		scenes = append(scenes, scene)
+		fmt.Printf("[DEBUG] Service mapped scene %d: %.1f-%.1f (%.1fs) with %d characters\n",
+			sceneIndex, segment.StartTime, segment.EndTime, segment.Duration, len(sceneCharacters))
+
+		sceneIndex++
 	}
 
 	return scenes

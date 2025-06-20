@@ -55,8 +55,10 @@ type VideoCharacterFilterAndPagination struct {
 // New scene-based filtering for character scenes
 type VideoSceneFilterAndPagination struct {
 	models.BaseRequestParamsUri
-	IncludeCharacters []uuid.UUID `json:"include_characters" form:"include_characters"`
-	ExcludeCharacters []uuid.UUID `json:"exclude_characters" form:"exclude_characters"`
+	IncludeCharactersStr []string    `form:"include_characters"`
+	ExcludeCharactersStr []string    `form:"exclude_characters"`
+	IncludeCharacters    []uuid.UUID `json:"-"` // Hidden from JSON
+	ExcludeCharacters    []uuid.UUID `json:"-"` // Hidden from JSON
 }
 
 type VideoCharacterSummary struct {
@@ -103,6 +105,23 @@ type VideoScene struct {
 type VideoSceneListResponse struct {
 	models.BaseListResponse
 	Items []VideoScene `json:"items"`
+}
+
+// TimeSegmentResult represents a time segment with character information from raw SQL query
+type TimeSegmentResult struct {
+	StartTime       float64              `json:"start_time"`
+	EndTime         float64              `json:"end_time"`
+	Duration        float64              `json:"duration"`
+	TotalCharacters int                  `json:"total_characters"`
+	Characters      []CharacterInSegment `json:"characters"`
+}
+
+// CharacterInSegment represents character info within a time segment from raw SQL query
+type CharacterInSegment struct {
+	CharacterID     uuid.UUID `json:"character_id"`
+	CharacterName   string    `json:"character_name"`
+	CharacterAvatar string    `json:"character_avatar"`
+	Confidence      float64   `json:"confidence"`
 }
 
 type SceneSegment struct {
