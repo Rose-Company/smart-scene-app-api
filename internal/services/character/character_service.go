@@ -46,35 +46,6 @@ func (s *characterService) GetCharactersByVideoID(videoID string, queryParams ch
 		tx.Where("video_id = ?", uuidID)
 	})
 
-	if queryParams.CharacterName != "" {
-		var characterIDs []uuid.UUID
-		characters, err := s.characterRepo.List(s.sc.Ctx(), models.QueryParams{}, func(tx *gorm.DB) {
-			tx.Where("name ILIKE ?", "%"+queryParams.CharacterName+"%").Select("id")
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for _, char := range characters {
-			characterIDs = append(characterIDs, char.ID)
-		}
-
-		if len(characterIDs) > 0 {
-			filters = append(filters, func(tx *gorm.DB) {
-				tx.Where("character_id IN ?", characterIDs)
-			})
-		} else {
-			return &characterModel.VideoCharacterListResponse{
-				BaseListResponse: models.BaseListResponse{
-					Total:    0,
-					Page:     queryParams.Page,
-					PageSize: queryParams.PageSize,
-					Items:    []characterModel.VideoCharacterSummary{},
-				},
-			}, nil
-		}
-	}
-
 	combinedFilter := func(tx *gorm.DB) {
 		for _, filter := range filters {
 			filter(tx)
