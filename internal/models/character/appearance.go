@@ -27,7 +27,7 @@ type CharacterAppearance struct {
 }
 
 func (c *CharacterAppearance) TableName() string {
-	return "character_appearances"
+	return common.POSTGRES_TABLE_NAME_CHARACTER_APPEARANCES
 }
 
 type VideoCharacterFilterAndPagination struct {

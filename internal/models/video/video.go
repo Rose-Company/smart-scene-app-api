@@ -25,7 +25,7 @@ type Video struct {
 }
 
 func (Video) TableName() string {
-	return "videos"
+	return common.POSTGRES_TABLE_NAME_VIDEOS
 }
 
 type VideoFilterAndPagination struct {

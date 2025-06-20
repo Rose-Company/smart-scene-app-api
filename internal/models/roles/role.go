@@ -1,6 +1,7 @@
 package roles
 
 import (
+	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 
 	"github.com/google/uuid"
@@ -14,5 +15,5 @@ type Role struct {
 }
 
 func (Role) TableName() string {
-	return "roles"
+	return common.POSTGRES_TABLE_NAME_ROLES
 }

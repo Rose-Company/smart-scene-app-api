@@ -1,6 +1,7 @@
 package tag
 
 import (
+	"smart-scene-app-api/common"
 	models "smart-scene-app-api/internal/models"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ type TagPosition struct {
 }
 
 func (TagPosition) TableName() string {
-	return "tag_positions"
+	return common.POSTGRES_TABLE_NAME_TAG_POSITIONS
 }
 
 type TagCategory struct {
@@ -37,7 +38,7 @@ type TagCategory struct {
 }
 
 func (TagCategory) TableName() string {
-	return "tag_categories"
+	return common.POSTGRES_TABLE_NAME_TAG_CATEGORIES
 }
 
 type Tag struct {
@@ -60,7 +61,7 @@ type Tag struct {
 }
 
 func (Tag) TableName() string {
-	return "tags"
+	return common.POSTGRES_TABLE_NAME_TAGS
 }
 
 type TagPositionCategory struct {
@@ -77,7 +78,7 @@ type TagPositionCategory struct {
 }
 
 func (TagPositionCategory) TableName() string {
-	return "tag_position_categories"
+	return common.POSTGRES_TABLE_NAME_TAG_POSITION_CATEGORIES
 }
 
 type TagFilterRequest struct {

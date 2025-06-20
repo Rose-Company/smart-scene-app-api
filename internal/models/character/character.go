@@ -22,7 +22,7 @@ type Character struct {
 }
 
 func (c *Character) TableName() string {
-	return "characters"
+	return common.POSTGRES_TABLE_NAME_CHARACTERS
 }
 
 type CharacterFilterAndPagination struct {
