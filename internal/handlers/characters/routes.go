@@ -12,6 +12,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 		videos := v1.Group("/videos")
 		{
 			videos.GET("/:id/characters", middleware.UserAuthentication(), h.GetCharactersByVideoID)
+			videos.GET("/:id/scenes", middleware.UserAuthentication(), h.GetVideoScenesWithCharacters)
 		}
 	}
 }
