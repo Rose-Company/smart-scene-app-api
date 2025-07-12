@@ -8,6 +8,8 @@ import (
 	"smart-scene-app-api/internal/repositories/video"
 	"smart-scene-app-api/server"
 
+	"strings"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -68,7 +70,12 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 				subQuery = subQuery.Where("vt.tag_id IN ?", queryParams.TagIDs)
 			}
 			if len(queryParams.TagCodes) > 0 {
-				subQuery = subQuery.Where("t.code IN ?", queryParams.TagCodes)
+				var codes []string
+				for _, code := range queryParams.TagCodes {
+					splitCodes := strings.Split(code, ",")
+					codes = append(codes, splitCodes...)
+				}
+				subQuery = subQuery.Where("t.code IN ?", codes)
 			}
 
 			tx.Where("id IN (?)", subQuery)
