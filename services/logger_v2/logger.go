@@ -3,9 +3,10 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type loggers struct {

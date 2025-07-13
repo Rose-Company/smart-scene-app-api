@@ -28,7 +28,7 @@ var restApiServiceCmd = &cobra.Command{
 		logger := loggerPkg.Get()
 
 		start, _ := cmd.Flags().GetBool("start")
-		
+
 		if start {
 			svr := server.NewServer("SupplierLoyaltyService", 8080)
 			restHdl := rest_api_service.RestHandler(svr)

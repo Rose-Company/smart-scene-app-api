@@ -42,29 +42,109 @@ definitions:
       token:
         type: string
     type: object
-  character.Character:
+  character.VideoCharacterListResponse:
     properties:
-      avatar:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/character.VideoCharacterSummary'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  character.VideoCharacterSummary:
+    properties:
+      character_avatar:
         type: string
-      created_at:
+      character_id:
         type: string
-      created_by:
+      character_name:
         type: string
-      description:
+      display_name:
         type: string
-      id:
+      end_time:
+        type: number
+      start_time:
+        type: number
+      video_id:
         type: string
-      is_active:
-        type: boolean
-      metadata:
-        additionalProperties: true
-        type: object
-      name:
+    type: object
+  character.VideoScene:
+    properties:
+      character_count:
+        description: Number of characters in scene
+        type: integer
+      characters:
+        description: Characters in this scene
+        items:
+          $ref: '#/definitions/character.VideoSceneCharacter'
+        type: array
+      duration:
+        description: Scene duration
+        type: number
+      end_frame:
+        description: Scene end frame
+        type: integer
+      end_time:
+        description: Scene end time
+        type: number
+      end_time_formatted:
+        description: HH:MM:SS
         type: string
-      updated_at:
+      scene_id:
+        description: Generated based on time range
         type: string
-      updated_by:
+      start_frame:
+        description: Scene start frame
+        type: integer
+      start_time:
+        description: Scene start time
+        type: number
+      start_time_formatted:
+        description: HH:MM:SS
         type: string
+      video_id:
+        type: string
+    type: object
+  character.VideoSceneCharacter:
+    properties:
+      character_avatar:
+        type: string
+      character_id:
+        type: string
+      character_name:
+        type: string
+      confidence:
+        type: number
+      end_frame:
+        type: integer
+      end_time:
+        type: number
+      start_frame:
+        type: integer
+      start_time:
+        type: number
+    type: object
+  character.VideoSceneListResponse:
+    properties:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/character.VideoScene'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  common.JSON:
+    additionalProperties: true
     type: object
   common.LOGIC_CODE:
     enum:
@@ -99,12 +179,6 @@ definitions:
     type: object
   video.Video:
     properties:
-      analysis:
-        description: Relations (will be loaded when needed)
-      analysis_version:
-        description: Track AI model version
-        type: string
-      character_appearances: {}
       character_count:
         type: integer
       created_at:
@@ -115,22 +189,12 @@ definitions:
         type: integer
       file_path:
         type: string
-      folder:
-        type: string
-      format:
-        type: string
-      frame_rate:
-        type: number
       has_character_analysis:
-        description: Character Analysis Related
         type: boolean
-      height:
-        type: integer
       id:
         type: string
       metadata:
-        additionalProperties: true
-        type: object
+        $ref: '#/definitions/common.JSON'
       status:
         type: string
       thumbnail_url:
@@ -141,8 +205,6 @@ definitions:
         type: string
       updated_by:
         type: string
-      width:
-        type: integer
     type: object
 host: localhost:8080
 info:
@@ -240,166 +302,6 @@ paths:
       summary: Register a new user
       tags:
       - auth
-  /api/v1/characters:
-    get:
-      consumes:
-      - application/json
-      description: Retrieve a list of all characters
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: List of characters
-          schema:
-            allOf:
-            - $ref: '#/definitions/common.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/character.Character'
-                  type: array
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/common.Response'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/common.Response'
-      security:
-      - BearerAuth: []
-      summary: Get all characters
-      tags:
-      - characters
-    post:
-      consumes:
-      - application/json
-      description: Create a new character with the provided details
-      parameters:
-      - description: Character details
-        in: body
-        name: character
-        required: true
-        schema:
-          $ref: '#/definitions/character.Character'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Character created successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/common.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/character.Character'
-              type: object
-        "400":
-          description: Bad request
-          schema:
-            $ref: '#/definitions/common.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/common.Response'
-        "409":
-          description: Character already exists
-          schema:
-            $ref: '#/definitions/common.Response'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/common.Response'
-      security:
-      - BearerAuth: []
-      summary: Create a new character
-      tags:
-      - characters
-  /api/v1/characters/{id}:
-    delete:
-      description: Delete a character by its ID
-      parameters:
-      - description: Character ID
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "204":
-          description: Character deleted successfully
-          schema:
-            $ref: '#/definitions/common.Response'
-        "400":
-          description: Bad request
-          schema:
-            $ref: '#/definitions/common.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/common.Response'
-        "404":
-          description: Character not found
-          schema:
-            $ref: '#/definitions/common.Response'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/common.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete a character
-      tags:
-      - characters
-    put:
-      consumes:
-      - application/json
-      description: Update a character by its ID with the provided details
-      parameters:
-      - description: Character ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Updated character details
-        in: body
-        name: character
-        required: true
-        schema:
-          $ref: '#/definitions/character.Character'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Character updated successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/common.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/character.Character'
-              type: object
-        "400":
-          description: Bad request
-          schema:
-            $ref: '#/definitions/common.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/common.Response'
-        "404":
-          description: Character not found
-          schema:
-            $ref: '#/definitions/common.Response'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/common.Response'
-      security:
-      - BearerAuth: []
-      summary: Update an existing character
-      tags:
-      - characters
   /api/v1/videos:
     get:
       consumes:
@@ -550,6 +452,150 @@ paths:
       summary: Get video by ID
       tags:
       - videos
+  /api/v1/videos/{video_id}/characters:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of characters that appear in a specific video with
+        appearance statistics
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by character name
+        in: query
+        name: character_name
+        type: string
+      - description: Minimum confidence threshold
+        in: query
+        name: min_confidence
+        type: number
+      - description: Minimum number of appearances
+        in: query
+        name: min_appearances
+        type: integer
+      - description: 'Sort by: appearance_count.desc, total_duration.desc, first_appearance.asc,
+          character_name.asc, confidence.desc'
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Characters retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.VideoCharacterListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get characters by video ID
+      tags:
+      - characters
+  /api/v1/videos/{video_id}/scenes:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve scenes from a video with include/exclude character filtering
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - collectionFormat: csv
+        description: Character IDs that MUST be present in scene
+        in: query
+        items:
+          type: string
+        name: include_characters
+        type: array
+      - collectionFormat: csv
+        description: Character IDs that must NOT be present in scene
+        in: query
+        items:
+          type: string
+        name: exclude_characters
+        type: array
+      - description: Minimum scene duration in seconds
+        in: query
+        name: min_duration
+        type: number
+      - description: Maximum scene duration in seconds
+        in: query
+        name: max_duration
+        type: number
+      - description: Minimum character confidence threshold
+        in: query
+        name: min_confidence
+        type: number
+      - description: 'Time overlap threshold for grouping scenes (default: 1.0 seconds)'
+        in: query
+        name: overlap_threshold
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Scenes retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.VideoSceneListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get video scenes with character filtering
+      tags:
+      - characters
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

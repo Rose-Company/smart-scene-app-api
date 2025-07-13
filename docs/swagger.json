@@ -152,269 +152,6 @@
                 }
             }
         },
-        "/api/v1/characters": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieve a list of all characters",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "characters"
-                ],
-                "summary": "Get all characters",
-                "responses": {
-                    "200": {
-                        "description": "List of characters",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/common.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/character.Character"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new character with the provided details",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "characters"
-                ],
-                "summary": "Create a new character",
-                "parameters": [
-                    {
-                        "description": "Character details",
-                        "name": "character",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/character.Character"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Character created successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/common.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/character.Character"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "Character already exists",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/characters/{id}": {
-            "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Update a character by its ID with the provided details",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "characters"
-                ],
-                "summary": "Update an existing character",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Character ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Updated character details",
-                        "name": "character",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/character.Character"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Character updated successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/common.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/character.Character"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Character not found",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Delete a character by its ID",
-                "tags": [
-                    "characters"
-                ],
-                "summary": "Delete a character",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Character ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "Character deleted successfully",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad request",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "Character not found",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "$ref": "#/definitions/common.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/videos": {
             "get": {
                 "security": [
@@ -662,6 +399,232 @@
                     }
                 }
             }
+        },
+        "/api/v1/videos/{video_id}/characters": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve a list of characters that appear in a specific video with appearance statistics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Get characters by video ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "video_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 10, max: 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by character name",
+                        "name": "character_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum confidence threshold",
+                        "name": "min_confidence",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Minimum number of appearances",
+                        "name": "min_appearances",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by: appearance_count.desc, total_duration.desc, first_appearance.asc, character_name.asc, confidence.desc",
+                        "name": "sort",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Characters retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/character.VideoCharacterListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/videos/{video_id}/scenes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retrieve scenes from a video with include/exclude character filtering",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "characters"
+                ],
+                "summary": "Get video scenes with character filtering",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Video ID",
+                        "name": "video_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default: 10, max: 100)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Character IDs that MUST be present in scene",
+                        "name": "include_characters",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Character IDs that must NOT be present in scene",
+                        "name": "exclude_characters",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum scene duration in seconds",
+                        "name": "min_duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Maximum scene duration in seconds",
+                        "name": "max_duration",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum character confidence threshold",
+                        "name": "min_confidence",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Time overlap threshold for grouping scenes (default: 1.0 seconds)",
+                        "name": "overlap_threshold",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Scenes retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/common.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/character.VideoSceneListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/common.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -728,41 +691,157 @@
                 }
             }
         },
-        "character.Character": {
+        "character.VideoCharacterListResponse": {
             "type": "object",
             "properties": {
-                "avatar": {
+                "extra": {},
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/character.VideoCharacterSummary"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "character.VideoCharacterSummary": {
+            "type": "object",
+            "properties": {
+                "character_avatar": {
                     "type": "string"
                 },
-                "created_at": {
+                "character_id": {
                     "type": "string"
                 },
-                "created_by": {
+                "character_name": {
                     "type": "string"
                 },
-                "description": {
+                "display_name": {
                     "type": "string"
                 },
-                "id": {
-                    "type": "string"
+                "end_time": {
+                    "type": "number"
                 },
-                "is_active": {
-                    "type": "boolean"
+                "start_time": {
+                    "type": "number"
                 },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "name": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "updated_by": {
+                "video_id": {
                     "type": "string"
                 }
             }
+        },
+        "character.VideoScene": {
+            "type": "object",
+            "properties": {
+                "character_count": {
+                    "description": "Number of characters in scene",
+                    "type": "integer"
+                },
+                "characters": {
+                    "description": "Characters in this scene",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/character.VideoSceneCharacter"
+                    }
+                },
+                "duration": {
+                    "description": "Scene duration",
+                    "type": "number"
+                },
+                "end_frame": {
+                    "description": "Scene end frame",
+                    "type": "integer"
+                },
+                "end_time": {
+                    "description": "Scene end time",
+                    "type": "number"
+                },
+                "end_time_formatted": {
+                    "description": "HH:MM:SS",
+                    "type": "string"
+                },
+                "scene_id": {
+                    "description": "Generated based on time range",
+                    "type": "string"
+                },
+                "start_frame": {
+                    "description": "Scene start frame",
+                    "type": "integer"
+                },
+                "start_time": {
+                    "description": "Scene start time",
+                    "type": "number"
+                },
+                "start_time_formatted": {
+                    "description": "HH:MM:SS",
+                    "type": "string"
+                },
+                "video_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "character.VideoSceneCharacter": {
+            "type": "object",
+            "properties": {
+                "character_avatar": {
+                    "type": "string"
+                },
+                "character_id": {
+                    "type": "string"
+                },
+                "character_name": {
+                    "type": "string"
+                },
+                "confidence": {
+                    "type": "number"
+                },
+                "end_frame": {
+                    "type": "integer"
+                },
+                "end_time": {
+                    "type": "number"
+                },
+                "start_frame": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "number"
+                }
+            }
+        },
+        "character.VideoSceneListResponse": {
+            "type": "object",
+            "properties": {
+                "extra": {},
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/character.VideoScene"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "common.JSON": {
+            "type": "object",
+            "additionalProperties": true
         },
         "common.LOGIC_CODE": {
             "type": "integer",
@@ -813,14 +892,6 @@
         "video.Video": {
             "type": "object",
             "properties": {
-                "analysis": {
-                    "description": "Relations (will be loaded when needed)"
-                },
-                "analysis_version": {
-                    "description": "Track AI model version",
-                    "type": "string"
-                },
-                "character_appearances": {},
                 "character_count": {
                     "type": "integer"
                 },
@@ -836,28 +907,14 @@
                 "file_path": {
                     "type": "string"
                 },
-                "folder": {
-                    "type": "string"
-                },
-                "format": {
-                    "type": "string"
-                },
-                "frame_rate": {
-                    "type": "number"
-                },
                 "has_character_analysis": {
-                    "description": "Character Analysis Related",
                     "type": "boolean"
-                },
-                "height": {
-                    "type": "integer"
                 },
                 "id": {
                     "type": "string"
                 },
                 "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "$ref": "#/definitions/common.JSON"
                 },
                 "status": {
                     "type": "string"
@@ -873,9 +930,6 @@
                 },
                 "updated_by": {
                     "type": "string"
-                },
-                "width": {
-                    "type": "integer"
                 }
             }
         }
