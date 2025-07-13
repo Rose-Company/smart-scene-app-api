@@ -145,6 +145,7 @@ func (h *Handler) CreateVideo(c *gin.Context) {
 // @Failure      401  {object}  common.Response  "Unauthorized"
 // @Failure      404  {object}  common.Response  "Video not found"
 // @Failure      500  {object}  common.Response  "Internal server error"
+// @Router       /api/v1/videos/{id} [put]
 func (h *Handler) UpdateVideo(c *gin.Context) {
 	videoID := c.Param("id")
 	if videoID == "" {
@@ -191,6 +192,8 @@ func (h *Handler) UpdateVideo(c *gin.Context) {
 // @Summary      Delete a video
 // @Description  Delete a video by its ID
 // @Tags         videos
+// @Accept       json
+// @Produce      json
 // @Security     BearerAuth
 // @Param        id  path      string  true  "Video ID"
 // @Success      204  {object}  common.Response  "Video deleted successfully"

@@ -177,6 +177,67 @@ definitions:
       total_count:
         type: integer
     type: object
+  tag.TagCategoryResponse:
+    properties:
+      category_code:
+        type: string
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      color:
+        type: string
+      display_style:
+        type: string
+      filter_type:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/tag.TagResponse'
+        type: array
+    type: object
+  tag.TagHierarchyResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/tag.TagCategoryResponse'
+        type: array
+      position_code:
+        type: string
+      position_id:
+        type: integer
+      position_title:
+        type: string
+    type: object
+  tag.TagListResponse:
+    properties:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/tag.TagHierarchyResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  tag.TagResponse:
+    properties:
+      color:
+        type: string
+      is_active:
+        type: boolean
+      tag_code:
+        type: string
+      tag_id:
+        type: integer
+      tag_name:
+        type: string
+      usage_count:
+        type: integer
+    type: object
   video.Video:
     properties:
       character_count:
@@ -302,6 +363,67 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /api/v1/tags/position/{position_code}:
+    get:
+      consumes:
+      - application/json
+      description: Get tags by position
+      parameters:
+      - description: Position code
+        in: path
+        name: position_code
+        required: true
+        type: string
+      - in: query
+        name: category
+        type: string
+      - in: query
+        name: is_active
+        type: boolean
+      - in: query
+        name: is_system_tag
+        type: boolean
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: page_size
+        type: integer
+      - in: query
+        name: position
+        type: string
+      - in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tag.TagListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get tags by position
+      tags:
+      - tags
   /api/v1/videos:
     get:
       consumes:
@@ -376,6 +498,8 @@ paths:
       - videos
   /api/v1/videos/{id}:
     delete:
+      consumes:
+      - application/json
       description: Delete a video by its ID
       parameters:
       - description: Video ID
@@ -383,6 +507,8 @@ paths:
         name: id
         required: true
         type: string
+      produces:
+      - application/json
       responses:
         "204":
           description: Video deleted successfully
@@ -450,6 +576,55 @@ paths:
       security:
       - BearerAuth: []
       summary: Get video by ID
+      tags:
+      - videos
+    put:
+      consumes:
+      - application/json
+      description: Update a video by its ID with the provided details
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated video details
+        in: body
+        name: video
+        required: true
+        schema:
+          $ref: '#/definitions/video.Video'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Update an existing video
       tags:
       - videos
   /api/v1/videos/{video_id}/characters:
