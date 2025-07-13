@@ -7,6 +7,8 @@ import (
 	"smart-scene-app-api/internal/models/character"
 	"smart-scene-app-api/internal/repositories"
 
+	"math"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -35,7 +37,39 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 		return []character.TimeSegmentResult{}, nil
 	}
 
-	// Simple query that groups by time segments and filters characters
+	fmt.Printf("[DEBUG] Repository SQL Query Parameters - VideoID: %s, Include: %v, Exclude: %v\n",
+		videoID, includeCharacters, excludeCharacters)
+
+	// Step 1: Get all segments with include characters
+	includeSegments, err := r.getSegmentsWithCharacters(ctx, videoID, includeCharacters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get include segments: %w", err)
+	}
+
+	// Step 2: If no exclude characters, return include segments as-is
+	if len(excludeCharacters) == 0 {
+		return includeSegments, nil
+	}
+
+	// Step 3: Get all segments with exclude characters
+	excludeSegments, err := r.getSegmentsWithCharacters(ctx, videoID, excludeCharacters)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exclude segments: %w", err)
+	}
+
+	// Step 4: Cut overlap between include and exclude segments
+	filteredSegments := r.cutOverlapFromSegments(includeSegments, excludeSegments)
+
+	fmt.Printf("[DEBUG] Final filtered segments: %d\n", len(filteredSegments))
+	return filteredSegments, nil
+}
+
+// getSegmentsWithCharacters gets time segments containing specific characters
+func (r *appearanceRepository) getSegmentsWithCharacters(ctx context.Context, videoID uuid.UUID, characterIDs []uuid.UUID) ([]character.TimeSegmentResult, error) {
+	if len(characterIDs) == 0 {
+		return []character.TimeSegmentResult{}, nil
+	}
+
 	query := `
 		SELECT 
 			start_time,
@@ -52,45 +86,23 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 			) as characters
 		FROM character_appearances ca
 		JOIN characters c ON c.id = ca.character_id AND c.is_active = true
-		WHERE ca.video_id = $1
+		WHERE ca.video_id = $1 AND ca.character_id IN (%s)
 		GROUP BY start_time, end_time, duration
-		HAVING 
-			-- Có ít nhất 1 nhân vật trong include list
-			SUM(CASE WHEN ca.character_id IN (%s) THEN 1 ELSE 0 END) > 0
-			%s
 		ORDER BY start_time
 	`
 
-	// Build include characters condition
-	includePlaceholders := make([]string, len(includeCharacters))
-	args := []interface{}{videoID} // First arg for video_id
-
-	for i, id := range includeCharacters {
-		includePlaceholders[i] = fmt.Sprintf("$%d", len(args)+1)
+	// Build placeholders for character IDs
+	placeholders := make([]string, len(characterIDs))
+	args := []interface{}{videoID}
+	for i, id := range characterIDs {
+		placeholders[i] = fmt.Sprintf("$%d", len(args)+1)
 		args = append(args, id)
 	}
-	includeCondition := strings.Join(includePlaceholders, ",")
 
-	// Build exclude characters condition if any
-	excludeCondition := ""
-	if len(excludeCharacters) > 0 {
-		excludePlaceholders := make([]string, len(excludeCharacters))
-		for i, id := range excludeCharacters {
-			excludePlaceholders[i] = fmt.Sprintf("$%d", len(args)+1)
-			args = append(args, id)
-		}
-		excludeCondition = fmt.Sprintf("AND SUM(CASE WHEN ca.character_id IN (%s) THEN 1 ELSE 0 END) = 0", strings.Join(excludePlaceholders, ","))
-	}
-
-	// Format the final query
-	finalQuery := fmt.Sprintf(query, includeCondition, excludeCondition)
-
-	fmt.Printf("[DEBUG] Repository SQL Query Parameters - VideoID: %s, Include: %v, Exclude: %v\n",
-		videoID, includeCharacters, excludeCharacters)
-	fmt.Printf("[DEBUG] Final Query: %s\n", finalQuery)
+	finalQuery := fmt.Sprintf(query, strings.Join(placeholders, ","))
+	fmt.Printf("[DEBUG] Query: %s\n", finalQuery)
 	fmt.Printf("[DEBUG] Args: %v\n", args)
 
-	// Execute query
 	rows, err := r.db.Raw(finalQuery, args...).Rows()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query: %w", err)
@@ -106,32 +118,24 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 
 		err := rows.Scan(&startTime, &endTime, &duration, &characterCount, &charactersJSON)
 		if err != nil {
-			fmt.Printf("[DEBUG] Repository error scanning row: %v\n", err)
 			return nil, fmt.Errorf("failed to scan query result row: %w", err)
 		}
-
-		fmt.Printf("[DEBUG] Raw JSON from database: %s\n", charactersJSON)
 
 		// Parse characters JSON
 		var charactersData []map[string]interface{}
 		if err := json.Unmarshal([]byte(charactersJSON), &charactersData); err != nil {
-			fmt.Printf("[DEBUG] Repository error parsing characters JSON: %v\n", err)
-			fmt.Printf("[DEBUG] Problematic JSON string: %s\n", charactersJSON)
 			return nil, fmt.Errorf("failed to parse characters JSON: %w", err)
 		}
 
 		// Convert to characters in segment
 		var characters []character.CharacterInSegment
 		for _, char := range charactersData {
-			// Check if character data is valid
 			if char == nil {
-				fmt.Printf("[DEBUG] Skipping null character entry\n")
 				continue
 			}
 
 			characterIDStr, ok := char["character_id"].(string)
 			if !ok {
-				fmt.Printf("[DEBUG] character_id is not a string: %v\n", char["character_id"])
 				return nil, fmt.Errorf("failed to parse character_id as string")
 			}
 
@@ -142,21 +146,17 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 
 			confidence, ok := char["confidence"].(float64)
 			if !ok {
-				fmt.Printf("[DEBUG] confidence is not a float64: %v\n", char["confidence"])
 				return nil, fmt.Errorf("failed to parse confidence value")
 			}
 
 			characterName, ok := char["character_name"].(string)
 			if !ok {
-				fmt.Printf("[DEBUG] character_name is not a string: %v\n", char["character_name"])
 				return nil, fmt.Errorf("failed to parse character name")
 			}
 
 			characterAvatar, ok := char["character_avatar"].(string)
 			if !ok {
-				// Avatar might be null, handle gracefully
 				characterAvatar = ""
-				fmt.Printf("[DEBUG] character_avatar is null or not a string, using empty string\n")
 			}
 
 			characters = append(characters, character.CharacterInSegment{
@@ -176,16 +176,101 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 		}
 
 		results = append(results, result)
-		fmt.Printf("[DEBUG] Repository created time segment: %.1f-%.1f (%.1fs) with %d characters\n",
-			startTime, endTime, duration, len(characters))
-	}
-
-	// Check for errors from iterating over rows
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error occurred during rows iteration: %w", err)
 	}
 
 	return results, nil
+}
+
+// cutOverlapFromSegments cuts overlapping portions from include segments where exclude segments exist
+func (r *appearanceRepository) cutOverlapFromSegments(includeSegments, excludeSegments []character.TimeSegmentResult) []character.TimeSegmentResult {
+	var filteredSegments []character.TimeSegmentResult
+
+	for _, includeSegment := range includeSegments {
+		fmt.Printf("[DEBUG] Processing include segment: %.1f-%.1f\n", includeSegment.StartTime, includeSegment.EndTime)
+
+		// Find all exclude segments that overlap with this include segment
+		var overlappingExcludes []character.TimeSegmentResult
+		for _, excludeSegment := range excludeSegments {
+			if r.segmentsOverlap(includeSegment, excludeSegment) {
+				overlappingExcludes = append(overlappingExcludes, excludeSegment)
+				fmt.Printf("[DEBUG] Found overlapping exclude segment: %.1f-%.1f\n", excludeSegment.StartTime, excludeSegment.EndTime)
+			}
+		}
+
+		// If no overlapping excludes, keep the include segment as-is
+		if len(overlappingExcludes) == 0 {
+			filteredSegments = append(filteredSegments, includeSegment)
+			fmt.Printf("[DEBUG] No overlaps, keeping segment: %.1f-%.1f\n", includeSegment.StartTime, includeSegment.EndTime)
+			continue
+		}
+
+		// Cut the include segment based on overlapping excludes
+		cutSegments := r.cutSegmentWithExcludes(includeSegment, overlappingExcludes)
+		filteredSegments = append(filteredSegments, cutSegments...)
+
+		for _, cutSegment := range cutSegments {
+			fmt.Printf("[DEBUG] Cut segment result: %.1f-%.1f\n", cutSegment.StartTime, cutSegment.EndTime)
+		}
+	}
+
+	return filteredSegments
+}
+
+// segmentsOverlap checks if two time segments overlap
+func (r *appearanceRepository) segmentsOverlap(seg1, seg2 character.TimeSegmentResult) bool {
+	return seg1.StartTime < seg2.EndTime && seg2.StartTime < seg1.EndTime
+}
+
+// cutSegmentWithExcludes cuts an include segment by removing overlapping portions with exclude segments
+func (r *appearanceRepository) cutSegmentWithExcludes(includeSegment character.TimeSegmentResult, excludeSegments []character.TimeSegmentResult) []character.TimeSegmentResult {
+	var results []character.TimeSegmentResult
+	currentStart := includeSegment.StartTime
+	currentEnd := includeSegment.EndTime
+
+	// Sort exclude segments by start time
+	sort.Slice(excludeSegments, func(i, j int) bool {
+		return excludeSegments[i].StartTime < excludeSegments[j].StartTime
+	})
+
+	for _, exclude := range excludeSegments {
+		// Calculate overlap
+		overlapStart := math.Max(currentStart, exclude.StartTime)
+		overlapEnd := math.Min(currentEnd, exclude.EndTime)
+
+		// If there's actual overlap
+		if overlapStart < overlapEnd {
+			// Add segment before overlap (if any)
+			if currentStart < overlapStart {
+				beforeSegment := character.TimeSegmentResult{
+					StartTime:       currentStart,
+					EndTime:         overlapStart,
+					Duration:        overlapStart - currentStart,
+					TotalCharacters: includeSegment.TotalCharacters,
+					Characters:      includeSegment.Characters,
+				}
+				results = append(results, beforeSegment)
+				fmt.Printf("[DEBUG] Added before-overlap segment: %.1f-%.1f\n", beforeSegment.StartTime, beforeSegment.EndTime)
+			}
+
+			// Move current start to after the overlap
+			currentStart = overlapEnd
+		}
+	}
+
+	// Add remaining segment after all overlaps (if any)
+	if currentStart < currentEnd {
+		afterSegment := character.TimeSegmentResult{
+			StartTime:       currentStart,
+			EndTime:         currentEnd,
+			Duration:        currentEnd - currentStart,
+			TotalCharacters: includeSegment.TotalCharacters,
+			Characters:      includeSegment.Characters,
+		}
+		results = append(results, afterSegment)
+		fmt.Printf("[DEBUG] Added after-overlap segment: %.1f-%.1f\n", afterSegment.StartTime, afterSegment.EndTime)
+	}
+
+	return results
 }
 
 // joinStrings joins string slices with a separator
