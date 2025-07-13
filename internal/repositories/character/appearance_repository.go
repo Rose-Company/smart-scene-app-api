@@ -40,6 +40,19 @@ func (r *appearanceRepository) FindTimeSegmentsWithCharacters(ctx context.Contex
 	fmt.Printf("[DEBUG] Repository SQL Query Parameters - VideoID: %s, Include: %v, Exclude: %v\n",
 		videoID, includeCharacters, excludeCharacters)
 
+	includeSet := make(map[uuid.UUID]bool)
+	for _, id := range includeCharacters {
+		includeSet[id] = true
+	}
+
+	for _, id := range excludeCharacters {
+		if includeSet[id] {
+			// If same character ID is in both include and exclude, return empty result
+			fmt.Printf("[DEBUG] Character ID %s found in both include and exclude lists, returning empty result\n", id)
+			return []character.TimeSegmentResult{}, nil
+		}
+	}
+
 	// Step 1: Get all segments with include characters
 	includeSegments, err := r.getSegmentsWithCharacters(ctx, videoID, includeCharacters)
 	if err != nil {
