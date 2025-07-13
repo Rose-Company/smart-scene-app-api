@@ -1,0 +1,780 @@
+basePath: /
+definitions:
+  auth.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.LoginResponse:
+    properties:
+      code:
+        type: integer
+      id:
+        type: string
+      token:
+        type: string
+    type: object
+  auth.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  auth.RegisterResponse:
+    properties:
+      code:
+        type: integer
+      id:
+        type: string
+      token:
+        type: string
+    type: object
+  character.VideoCharacterListResponse:
+    properties:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/character.VideoCharacterSummary'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  character.VideoCharacterSummary:
+    properties:
+      character_avatar:
+        type: string
+      character_id:
+        type: string
+      character_name:
+        type: string
+      display_name:
+        type: string
+      end_time:
+        type: number
+      start_time:
+        type: number
+      video_id:
+        type: string
+    type: object
+  character.VideoScene:
+    properties:
+      character_count:
+        description: Number of characters in scene
+        type: integer
+      characters:
+        description: Characters in this scene
+        items:
+          $ref: '#/definitions/character.VideoSceneCharacter'
+        type: array
+      duration:
+        description: Scene duration
+        type: number
+      end_frame:
+        description: Scene end frame
+        type: integer
+      end_time:
+        description: Scene end time
+        type: number
+      end_time_formatted:
+        description: HH:MM:SS
+        type: string
+      scene_id:
+        description: Generated based on time range
+        type: string
+      start_frame:
+        description: Scene start frame
+        type: integer
+      start_time:
+        description: Scene start time
+        type: number
+      start_time_formatted:
+        description: HH:MM:SS
+        type: string
+      video_id:
+        type: string
+    type: object
+  character.VideoSceneCharacter:
+    properties:
+      character_avatar:
+        type: string
+      character_id:
+        type: string
+      character_name:
+        type: string
+      confidence:
+        type: number
+      end_frame:
+        type: integer
+      end_time:
+        type: number
+      start_frame:
+        type: integer
+      start_time:
+        type: number
+    type: object
+  character.VideoSceneListResponse:
+    properties:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/character.VideoScene'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  common.JSON:
+    additionalProperties: true
+    type: object
+  common.LOGIC_CODE:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - REQUEST_SUCCESS
+    - REQUEST_FAILED
+  common.Response:
+    properties:
+      code:
+        $ref: '#/definitions/common.LOGIC_CODE'
+      data: {}
+      error_code:
+        type: string
+      error_detail:
+        type: string
+      message:
+        type: string
+      paging:
+        $ref: '#/definitions/common.paging'
+    type: object
+  common.paging:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total_count:
+        type: integer
+    type: object
+  tag.TagCategoryResponse:
+    properties:
+      category_code:
+        type: string
+      category_id:
+        type: integer
+      category_name:
+        type: string
+      color:
+        type: string
+      display_style:
+        type: string
+      filter_type:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/tag.TagResponse'
+        type: array
+    type: object
+  tag.TagHierarchyResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/tag.TagCategoryResponse'
+        type: array
+      position_code:
+        type: string
+      position_id:
+        type: integer
+      position_title:
+        type: string
+    type: object
+  tag.TagListResponse:
+    properties:
+      extra: {}
+      items:
+        items:
+          $ref: '#/definitions/tag.TagHierarchyResponse'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  tag.TagResponse:
+    properties:
+      color:
+        type: string
+      is_active:
+        type: boolean
+      tag_code:
+        type: string
+      tag_id:
+        type: integer
+      tag_name:
+        type: string
+      usage_count:
+        type: integer
+    type: object
+  video.Video:
+    properties:
+      character_count:
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        type: string
+      duration:
+        type: integer
+      file_path:
+        type: string
+      has_character_analysis:
+        type: boolean
+      id:
+        type: string
+      metadata:
+        $ref: '#/definitions/common.JSON'
+      status:
+        type: string
+      thumbnail_url:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Server for Smart Scene Application
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Smart Scene App API
+  version: "1.0"
+paths:
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: Login to the application
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/auth.RegisterResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      summary: Register a new user
+      tags:
+      - auth
+  /api/v1/tags/position/{position_code}:
+    get:
+      consumes:
+      - application/json
+      description: Get tags by position
+      parameters:
+      - description: Position code
+        in: path
+        name: position_code
+        required: true
+        type: string
+      - in: query
+        name: category
+        type: string
+      - in: query
+        name: is_active
+        type: boolean
+      - in: query
+        name: is_system_tag
+        type: boolean
+      - in: query
+        name: page
+        type: integer
+      - in: query
+        name: page_size
+        type: integer
+      - in: query
+        name: position
+        type: string
+      - in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/tag.TagListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get tags by position
+      tags:
+      - tags
+  /api/v1/videos:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of all videos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of videos
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/video.Video'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get all videos
+      tags:
+      - videos
+    post:
+      consumes:
+      - application/json
+      description: Create a new video with the provided details
+      parameters:
+      - description: Video details
+        in: body
+        name: video
+        required: true
+        schema:
+          $ref: '#/definitions/video.Video'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Video created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Create a new video
+      tags:
+      - videos
+  /api/v1/videos/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a video by its ID
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Video deleted successfully
+          schema:
+            $ref: '#/definitions/common.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete a video
+      tags:
+      - videos
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a video by its ID
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video details
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get video by ID
+      tags:
+      - videos
+    put:
+      consumes:
+      - application/json
+      description: Update a video by its ID with the provided details
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated video details
+        in: body
+        name: video
+        required: true
+        schema:
+          $ref: '#/definitions/video.Video'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/video.Video'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "404":
+          description: Video not found
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Update an existing video
+      tags:
+      - videos
+  /api/v1/videos/{video_id}/characters:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of characters that appear in a specific video with
+        appearance statistics
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Filter by character name
+        in: query
+        name: character_name
+        type: string
+      - description: Minimum confidence threshold
+        in: query
+        name: min_confidence
+        type: number
+      - description: Minimum number of appearances
+        in: query
+        name: min_appearances
+        type: integer
+      - description: 'Sort by: appearance_count.desc, total_duration.desc, first_appearance.asc,
+          character_name.asc, confidence.desc'
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Characters retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.VideoCharacterListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get characters by video ID
+      tags:
+      - characters
+  /api/v1/videos/{video_id}/scenes:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve scenes from a video with include/exclude character filtering
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - collectionFormat: csv
+        description: Character IDs that MUST be present in scene
+        in: query
+        items:
+          type: string
+        name: include_characters
+        type: array
+      - collectionFormat: csv
+        description: Character IDs that must NOT be present in scene
+        in: query
+        items:
+          type: string
+        name: exclude_characters
+        type: array
+      - description: Minimum scene duration in seconds
+        in: query
+        name: min_duration
+        type: number
+      - description: Maximum scene duration in seconds
+        in: query
+        name: max_duration
+        type: number
+      - description: Minimum character confidence threshold
+        in: query
+        name: min_confidence
+        type: number
+      - description: 'Time overlap threshold for grouping scenes (default: 1.0 seconds)'
+        in: query
+        name: overlap_threshold
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Scenes retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/common.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/character.VideoSceneListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/common.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/common.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/common.Response'
+      security:
+      - BearerAuth: []
+      summary: Get video scenes with character filtering
+      tags:
+      - characters
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

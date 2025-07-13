@@ -39,7 +39,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken := getRawToken(c)
 		if rawToken == "" {
-			if c.FullPath() == "/v1/orders/estimates" {
+			if c.FullPath() == "" {
 				c.Next()
 				return
 			}

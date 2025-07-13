@@ -1,0 +1,30 @@
+{
+  "extensions.ignoreRecommendations": true,
+  "explorer.confirmDelete": false,
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.CustomBrowser": "chrome",
+  "workbench.editor.labelFormat": "short",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "github.copilot.editor.enableAutoCompletions": false,
+  "cursor.cpp.enablePartialAccepts": true,
+  "editor.codeActionsOnSave": "source.fixAll",
+  "editor.diagnostics.enabled": true,
+  "editor.diagnostics.decorationsEnabled": true,
+  "editor.diagnostics.showInline": true,
+  "problems.showCurrentInStatus": true,
+  "problems.decorations.enabled": true,
+  "editor.semanticHighlighting.enabled": true,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSaveMode": "modifications",
+  "editor.formatOnSaveOptions": {
+    "tabSize": 2
+  }
+}

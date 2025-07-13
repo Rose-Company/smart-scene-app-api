@@ -153,6 +153,8 @@ var (
 	ErrInvalidPromoCodeApplyContext                 = errors.New("invalid_promo_code_apply_context")
 	ErrWrongLoginInfo                               = errors.New("wrong_login_info")
 	ErrRegistrationRequestIsCancelled               = errors.New("registration request is cancelled")
+	ErrCharacterNotFound                            = errors.New("character_not_found")
+	ErrCharacterAlreadyExists                       = errors.New("character_already_exists")
 )
 
 var (

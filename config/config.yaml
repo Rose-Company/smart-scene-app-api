@@ -1,18 +1,18 @@
 postgres:
-  host:
-  user:
-  pass:
-  db:
-  params: application_name=app-api
+  host: ${DB_HOST}
+  user: ${DB_USER}
+  pass: ${DB_PASS}
+  db: ${DB_NAME}
+  params: sslmode=require&application_name=app-api
+  port: ${DB_PORT}
   gorm_debug: debug
 
-
 google:
-  credentials_dir: ./keys/google_service_cre.json
+  credentials_dir: ./keys/google_service_credentials.json
 
 http:
   max_idle_connection: 10
   idle_connection_timeout: 30
 
-jwt_secret:
+jwt_secret: ${JWT_SECRET}
 token_expired_time: 604800000

@@ -7,6 +7,7 @@ import (
 	"smart-scene-app-api/services/logger"
 
 	"github.com/go-redsync/redsync/v4"
+	"gorm.io/gorm"
 )
 
 type ServerContext interface {
@@ -22,4 +23,6 @@ type ServerContext interface {
 	GetTelegramService() rest_service.RestInterface
 	GetAwsSes() *pkg.AWSSesClient
 	SetAwsSes(service *pkg.AWSSesClient)
+	DB() *gorm.DB
+	Ctx() context.Context
 }
