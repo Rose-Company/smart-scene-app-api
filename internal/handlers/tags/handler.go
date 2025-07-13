@@ -23,6 +23,20 @@ func NewTagHandler(ctx server.ServerContext) *TagHandler {
 	}
 }
 
+// GetTagsByPosition godoc
+// @Summary      Get tags by position
+// @Description  Get tags by position
+// @Tags         tags
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        position_code  path      string  true  "Position code"
+// @Param        query  query      tagModels.TagFilterRequest  true  "Query parameters"
+// @Success      200  {object}  common.Response{data=tagModels.TagListResponse}  "Tags retrieved successfully"
+// @Failure      400  {object}  common.Response  "Bad request"
+// @Failure      401  {object}  common.Response  "Unauthorized"
+// @Failure      500  {object}  common.Response  "Internal server error"
+// @Router       /api/v1/tags/position/{position_code} [get]
 func (h *TagHandler) GetTagsByPosition(c *gin.Context) {
 	positionCode := c.Param("position_code")
 	if positionCode == "" {

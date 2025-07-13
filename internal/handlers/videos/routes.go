@@ -32,9 +32,9 @@ func (h *Handler) RegisterRoutes(router *gin.Engine) {
 			videos.GET("", middleware.UserAuthentication(), h.GetAllVideos)
 			videos.GET("/:id", middleware.UserAuthentication(), h.GetVideoDetail)
 
-			videos.POST("", h.CreateVideo)
-			videos.PUT("/:id", h.UpdateVideo)
-			videos.DELETE("/:id", h.DeleteVideo)
+			videos.POST("", middleware.UserAuthentication(), h.CreateVideo)
+			videos.PUT("/:id", middleware.UserAuthentication(), h.UpdateVideo)
+			videos.DELETE("/:id", middleware.UserAuthentication(), h.DeleteVideo)
 		}
 	}
 }

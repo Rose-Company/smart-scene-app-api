@@ -1,6 +1,7 @@
 package video
 
 import (
+	"log/slog"
 	"smart-scene-app-api/common"
 	"smart-scene-app-api/internal/models"
 	videoModel "smart-scene-app-api/internal/models/video"
@@ -157,6 +158,7 @@ func (s *videoService) GetAllVideos(queryParams videoModel.VideoFilterAndPaginat
 		}
 	}
 
+	slog.Info("messages", "messages", items[0].ID)
 	response.Items = items
 	return response, nil
 }
