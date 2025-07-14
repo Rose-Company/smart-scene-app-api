@@ -210,26 +210,33 @@ func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.
 
 	// Step 2: For each merged range, find all characters that appear in that time range
 	var scenes []characterModel.VideoScene
+	sceneCounter := 1
 	for i, timeRange := range mergedRanges {
 		sceneCharacters, err := s.findCharactersInTimeRange(videoID, timeRange.StartTime, timeRange.EndTime)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find characters in time range %.1f-%.1f: %w", timeRange.StartTime, timeRange.EndTime, err)
 		}
 
-		scene := characterModel.VideoScene{
-			VideoID:            videoID,
-			SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", i+1, timeRange.StartTime, timeRange.EndTime),
-			StartTime:          timeRange.StartTime,
-			EndTime:            timeRange.EndTime,
-			Duration:           timeRange.EndTime - timeRange.StartTime,
-			CharacterCount:     len(sceneCharacters),
-			Characters:         sceneCharacters,
-			StartTimeFormatted: formatSecondsToTime(timeRange.StartTime),
-			EndTimeFormatted:   formatSecondsToTime(timeRange.EndTime),
-		}
+		// Only create scene if there are characters present
+		if len(sceneCharacters) > 0 {
+			scene := characterModel.VideoScene{
+				VideoID:            videoID,
+				SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", sceneCounter, timeRange.StartTime, timeRange.EndTime),
+				StartTime:          timeRange.StartTime,
+				EndTime:            timeRange.EndTime,
+				Duration:           timeRange.EndTime - timeRange.StartTime,
+				CharacterCount:     len(sceneCharacters),
+				Characters:         sceneCharacters,
+				StartTimeFormatted: formatSecondsToTime(timeRange.StartTime),
+				EndTimeFormatted:   formatSecondsToTime(timeRange.EndTime),
+			}
 
-		scenes = append(scenes, scene)
-		fmt.Printf("[DEBUG] Created merged scene %d: %.1f-%.1f with %d characters\n", i+1, timeRange.StartTime, timeRange.EndTime, len(sceneCharacters))
+			scenes = append(scenes, scene)
+			fmt.Printf("[DEBUG] Created merged scene %d: %.1f-%.1f with %d characters\n", sceneCounter, timeRange.StartTime, timeRange.EndTime, len(sceneCharacters))
+			sceneCounter++
+		} else {
+			fmt.Printf("[DEBUG] Skipped scene %d: %.1f-%.1f (no characters found)\n", i+1, timeRange.StartTime, timeRange.EndTime)
+		}
 	}
 
 	return scenes, nil
