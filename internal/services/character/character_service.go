@@ -163,7 +163,6 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 
 	fmt.Printf("[DEBUG] Repository returned time segments: %d\n", len(timeSegments))
 
-	// Merge overlapping segments and find all characters in merged ranges
 	scenes, err := s.mapTimeSegmentsToVideoScenesWithMerging(uuidID, timeSegments, queryParams.IncludeCharacters, queryParams.ExcludeCharacters)
 	if err != nil {
 		fmt.Printf("[DEBUG] Error in mapping segments to scenes: %v\n", err)
@@ -199,17 +198,14 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 	return response, nil
 }
 
-// mapTimeSegmentsToVideoScenesWithMerging merges overlapping segments and finds all characters in merged ranges
 func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.UUID, timeSegments []characterModel.TimeSegmentResult, requiredCharacters []uuid.UUID, excludeCharacters []uuid.UUID) ([]characterModel.VideoScene, error) {
 	if len(timeSegments) == 0 {
 		return []characterModel.VideoScene{}, nil
 	}
 
-	// Step 1: Merge overlapping time ranges
 	mergedRanges := s.mergeTimeRanges(timeSegments)
 	fmt.Printf("[DEBUG] Merged %d segments into %d ranges\n", len(timeSegments), len(mergedRanges))
 
-	// Step 2: For each merged range, find all characters that appear in that time range
 	var scenes []characterModel.VideoScene
 	sceneCounter := 1
 	for i, timeRange := range mergedRanges {
@@ -218,14 +214,11 @@ func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.
 			return nil, fmt.Errorf("failed to find characters in time range %.1f-%.1f: %w", timeRange.StartTime, timeRange.EndTime, err)
 		}
 
-		// Only create scene if there are characters present and all required characters are included
 		if len(sceneCharacters) > 0 && s.sceneContainsAllRequiredCharacters(sceneCharacters, requiredCharacters) {
-			// Use the intersection time from characters if available
 			sceneStartTime := timeRange.StartTime
 			sceneEndTime := timeRange.EndTime
 
 			if len(sceneCharacters) > 0 {
-				// All characters should have the same intersection time after findCharactersInTimeRange
 				sceneStartTime = sceneCharacters[0].StartTime
 				sceneEndTime = sceneCharacters[0].EndTime
 			}
@@ -253,19 +246,16 @@ func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.
 	return scenes, nil
 }
 
-// TimeRange represents a time range
 type TimeRange struct {
 	StartTime float64
 	EndTime   float64
 }
 
-// mergeTimeRanges merges overlapping time ranges from segments
 func (s *characterService) mergeTimeRanges(timeSegments []characterModel.TimeSegmentResult) []TimeRange {
 	if len(timeSegments) == 0 {
 		return []TimeRange{}
 	}
 
-	// Convert to time ranges and sort by start time
 	var ranges []TimeRange
 	for _, segment := range timeSegments {
 		ranges = append(ranges, TimeRange{
@@ -274,42 +264,34 @@ func (s *characterService) mergeTimeRanges(timeSegments []characterModel.TimeSeg
 		})
 	}
 
-	// Sort by start time
 	sort.Slice(ranges, func(i, j int) bool {
 		return ranges[i].StartTime < ranges[j].StartTime
 	})
 
-	// Merge overlapping ranges
 	var merged []TimeRange
 	current := ranges[0]
 
 	for i := 1; i < len(ranges); i++ {
 		next := ranges[i]
 
-		// If current and next overlap, merge them
 		if current.EndTime >= next.StartTime {
-			// Extend current range to include next
 			if next.EndTime > current.EndTime {
 				current.EndTime = next.EndTime
 			}
 			fmt.Printf("[DEBUG] Merged ranges: %.1f-%.1f + %.1f-%.1f = %.1f-%.1f\n",
 				current.StartTime, current.EndTime, next.StartTime, next.EndTime, current.StartTime, current.EndTime)
 		} else {
-			// No overlap, add current to merged and start new current
 			merged = append(merged, current)
 			current = next
 		}
 	}
 
-	// Add the last range
 	merged = append(merged, current)
 
 	return merged
 }
 
-// findCharactersInTimeRange finds all characters that appear in a specific time range
 func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTime, endTime float64) ([]characterModel.VideoSceneCharacter, error) {
-	// Query to find all character appearances that overlap with the time range
 	query := `
 		SELECT DISTINCT
 			ca.character_id,
@@ -384,9 +366,7 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 	return characters, nil
 }
 
-// findCharactersInTimeRangeWithExclusions finds all characters that appear in a specific time range, then excludes overlapping time with excluded characters
 func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.UUID, startTime, endTime float64, includeCharacters []uuid.UUID, excludeCharacters []uuid.UUID) ([]characterModel.VideoSceneCharacter, error) {
-	// Query to find ALL character appearances that overlap with the time range (including excluded ones for time calculation)
 	query := `
 		SELECT DISTINCT
 			ca.character_id,
@@ -412,6 +392,7 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 
 	var allCharacters []characterModel.VideoSceneCharacter
 	var excludedCharacters []characterModel.VideoSceneCharacter
+	var includedCharacterRanges []TimeRange
 
 	for rows.Next() {
 		var characterID uuid.UUID
@@ -432,7 +413,6 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 			EndTime:         charEndTime,
 		}
 
-		// Check if this character is excluded
 		isExcluded := false
 		for _, excludeID := range excludeCharacters {
 			if characterID == excludeID {
@@ -444,6 +424,12 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 
 		if !isExcluded {
 			allCharacters = append(allCharacters, character)
+			if len(includeCharacters) == 1 && characterID == includeCharacters[0] {
+				includedCharacterRanges = append(includedCharacterRanges, TimeRange{
+					StartTime: charStartTime,
+					EndTime:   charEndTime,
+				})
+			}
 			fmt.Printf("[DEBUG] Found included character %s in range %.1f-%.1f (original: %.1f-%.1f)\n",
 				characterName, startTime, endTime, charStartTime, charEndTime)
 		} else {
@@ -452,19 +438,93 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 		}
 	}
 
-	// Process time ranges for included characters, subtracting excluded character overlaps
 	fmt.Printf("[DEBUG] Processing %d included characters and %d excluded characters\n", len(allCharacters), len(excludedCharacters))
+
+	if len(includeCharacters) == 1 && len(includedCharacterRanges) > 0 {
+		var mergedRanges []TimeRange
+		sort.Slice(includedCharacterRanges, func(i, j int) bool {
+			return includedCharacterRanges[i].StartTime < includedCharacterRanges[j].StartTime
+		})
+
+		current := includedCharacterRanges[0]
+		for i := 1; i < len(includedCharacterRanges); i++ {
+			next := includedCharacterRanges[i]
+			if current.EndTime >= next.StartTime {
+				if next.EndTime > current.EndTime {
+					current.EndTime = next.EndTime
+				}
+			} else {
+				mergedRanges = append(mergedRanges, current)
+				current = next
+			}
+		}
+		mergedRanges = append(mergedRanges, current)
+
+		var finalRanges []TimeRange
+		for _, r := range mergedRanges {
+			var excludedRanges []TimeRange
+			for _, excludedChar := range excludedCharacters {
+				if excludedChar.StartTime <= r.EndTime && excludedChar.EndTime >= r.StartTime {
+					excludedRanges = append(excludedRanges, TimeRange{
+						StartTime: excludedChar.StartTime,
+						EndTime:   excludedChar.EndTime,
+					})
+				}
+			}
+
+			if len(excludedRanges) > 0 {
+				sort.Slice(excludedRanges, func(i, j int) bool {
+					return excludedRanges[i].StartTime < excludedRanges[j].StartTime
+				})
+
+				currentTime := r.StartTime
+				for _, excludedRange := range excludedRanges {
+					if currentTime < excludedRange.StartTime {
+						finalRanges = append(finalRanges, TimeRange{
+							StartTime: currentTime,
+							EndTime:   excludedRange.StartTime - 1,
+						})
+					}
+					currentTime = excludedRange.EndTime + 1
+				}
+
+				if currentTime < r.EndTime {
+					finalRanges = append(finalRanges, TimeRange{
+						StartTime: currentTime,
+						EndTime:   r.EndTime,
+					})
+				}
+			} else {
+				finalRanges = append(finalRanges, r)
+			}
+		}
+
+		var finalCharacters []characterModel.VideoSceneCharacter
+		for _, r := range finalRanges {
+			for _, char := range allCharacters {
+				if char.CharacterID == includeCharacters[0] {
+					newChar := char
+					newChar.StartTime = r.StartTime
+					newChar.EndTime = r.EndTime
+					finalCharacters = append(finalCharacters, newChar)
+					break
+				}
+			}
+		}
+
+		fmt.Printf("[DEBUG] Final characters count after single character processing: %d\n", len(finalCharacters))
+		return finalCharacters, nil
+	}
+
 	var finalCharacters []characterModel.VideoSceneCharacter
 	for _, char := range allCharacters {
 		adjustedStart := char.StartTime
 		adjustedEnd := char.EndTime
 		fmt.Printf("[DEBUG] Processing character %s with original time: %.1f-%.1f\n", char.CharacterName, char.StartTime, char.EndTime)
 
-		// Subtract overlapping time with excluded characters
 		for _, excludedChar := range excludedCharacters {
 			fmt.Printf("[DEBUG] Checking overlap with excluded character %s (%.1f-%.1f)\n", excludedChar.CharacterName, excludedChar.StartTime, excludedChar.EndTime)
 
-			// Find overlap between char and excludedChar
 			overlapStart := math.Max(char.StartTime, excludedChar.StartTime)
 			overlapEnd := math.Min(char.EndTime, excludedChar.EndTime)
 
@@ -473,48 +533,36 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 			if overlapStart <= overlapEnd {
 				fmt.Printf("[DEBUG] Overlap detected between %s and %s: %.1f-%.1f\n", char.CharacterName, excludedChar.CharacterName, overlapStart, overlapEnd)
 
-				// There is overlap, adjust the time range
 				if overlapStart == char.StartTime && overlapEnd == char.EndTime {
-					// Complete overlap, skip this character
 					fmt.Printf("[DEBUG] Complete overlap detected, marking character for exclusion\n")
 					adjustedStart = -1
 					adjustedEnd = -1
 					break
 				} else if overlapStart == overlapEnd {
-					// Point overlap (single time point) - handle this case first before checking start/end positions
 					if overlapStart == char.StartTime {
-						// Point overlap at start, move start time slightly forward
 						fmt.Printf("[DEBUG] Point overlap at start %.1f, adjusting start time from %.1f to %.1f\n", overlapStart, adjustedStart, overlapStart+1)
 						adjustedStart = overlapStart + 1
 					} else if overlapEnd == char.EndTime {
-						// Point overlap at end, move end time backward
 						fmt.Printf("[DEBUG] Point overlap at end %.1f, adjusting end time from %.1f to %.1f\n", overlapEnd, adjustedEnd, overlapStart-1)
 						adjustedEnd = overlapStart - 1
 					} else {
-						// Point overlap in middle - for now keep as is
 						fmt.Printf("[DEBUG] Point overlap in middle at %.1f, keeping character time unchanged\n", overlapStart)
 					}
 				} else if overlapStart == char.StartTime {
-					// Range overlap at the beginning, move start time
 					fmt.Printf("[DEBUG] Range overlap at beginning, adjusting start time from %.1f to %.1f\n", adjustedStart, overlapEnd)
 					adjustedStart = overlapEnd
 				} else if overlapEnd == char.EndTime {
-					// Range overlap at the end, move end time
 					fmt.Printf("[DEBUG] Range overlap at end, adjusting end time from %.1f to %.1f\n", adjustedEnd, overlapStart)
 					adjustedEnd = overlapStart
 				} else {
-					// Middle overlap - for now, we'll keep the character as is and log
 					fmt.Printf("[DEBUG] Middle range overlap detected (not handled yet): char(%.1f-%.1f) vs excluded(%.1f-%.1f)\n",
 						char.StartTime, char.EndTime, excludedChar.StartTime, excludedChar.EndTime)
 				}
-				// Note: For middle overlaps, we would need more complex logic to split into multiple segments
-				// For now, we handle the simpler cases
 			} else {
 				fmt.Printf("[DEBUG] No overlap between %s and %s\n", char.CharacterName, excludedChar.CharacterName)
 			}
 		}
 
-		// Only include characters with valid time ranges (including point-in-time appearances)
 		if adjustedStart >= 0 && adjustedEnd >= adjustedStart {
 			char.StartTime = adjustedStart
 			char.EndTime = adjustedEnd
@@ -527,7 +575,6 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 
 	fmt.Printf("[DEBUG] Final characters count: %d\n", len(finalCharacters))
 
-	// Calculate intersection time only when multiple characters are specifically included
 	if len(includeCharacters) > 1 && len(finalCharacters) > 1 {
 		intersectionStart := startTime
 		intersectionEnd := endTime
@@ -553,13 +600,11 @@ func (s *characterService) findCharactersInTimeRangeWithExclusions(videoID uuid.
 	return finalCharacters, nil
 }
 
-// sceneContainsAllRequiredCharacters checks if a scene contains all required characters
 func (s *characterService) sceneContainsAllRequiredCharacters(sceneCharacters []characterModel.VideoSceneCharacter, requiredCharacters []uuid.UUID) bool {
 	if len(requiredCharacters) == 0 {
 		return true
 	}
 
-	// Create a set of character IDs in the scene
 	sceneCharacterIDs := make(map[uuid.UUID]bool)
 	for _, char := range sceneCharacters {
 		sceneCharacterIDs[char.CharacterID] = true
