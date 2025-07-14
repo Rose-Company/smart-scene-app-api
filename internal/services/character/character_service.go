@@ -219,20 +219,30 @@ func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.
 
 		// Only create scene if there are characters present and all required characters are included
 		if len(sceneCharacters) > 0 && s.sceneContainsAllRequiredCharacters(sceneCharacters, requiredCharacters) {
+			// Use the intersection time from characters if available
+			sceneStartTime := timeRange.StartTime
+			sceneEndTime := timeRange.EndTime
+
+			if len(sceneCharacters) > 0 {
+				// All characters should have the same intersection time after findCharactersInTimeRange
+				sceneStartTime = sceneCharacters[0].StartTime
+				sceneEndTime = sceneCharacters[0].EndTime
+			}
+
 			scene := characterModel.VideoScene{
 				VideoID:            videoID,
 				SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", sceneCounter, timeRange.StartTime, timeRange.EndTime),
-				StartTime:          timeRange.StartTime,
-				EndTime:            timeRange.EndTime,
-				Duration:           timeRange.EndTime - timeRange.StartTime,
+				StartTime:          sceneStartTime,
+				EndTime:            sceneEndTime,
+				Duration:           sceneEndTime - sceneStartTime,
 				CharacterCount:     len(sceneCharacters),
 				Characters:         sceneCharacters,
-				StartTimeFormatted: formatSecondsToTime(timeRange.StartTime),
-				EndTimeFormatted:   formatSecondsToTime(timeRange.EndTime),
+				StartTimeFormatted: formatSecondsToTime(sceneStartTime),
+				EndTimeFormatted:   formatSecondsToTime(sceneEndTime),
 			}
 
 			scenes = append(scenes, scene)
-			fmt.Printf("[DEBUG] Created merged scene %d: %.1f-%.1f with %d characters\n", sceneCounter, timeRange.StartTime, timeRange.EndTime, len(sceneCharacters))
+			fmt.Printf("[DEBUG] Created merged scene %d: %.1f-%.1f (intersection: %.1f-%.1f) with %d characters\n", sceneCounter, timeRange.StartTime, timeRange.EndTime, sceneStartTime, sceneEndTime, len(sceneCharacters))
 			sceneCounter++
 		} else {
 			fmt.Printf("[DEBUG] Skipped scene %d: %.1f-%.1f (no characters found)\n", i+1, timeRange.StartTime, timeRange.EndTime)
@@ -305,15 +315,15 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 			c.name as character_name,
 			COALESCE(c.avatar, '') as character_avatar,
 			AVG(ca.confidence) as confidence,
-			MAX(GREATEST(ca.start_time, $2)) as effective_start_time,
-			MIN(LEAST(ca.end_time, $3)) as effective_end_time
+			ca.start_time,
+			ca.end_time
 		FROM character_appearances ca
 		JOIN characters c ON c.id = ca.character_id AND c.is_active = true
 		WHERE ca.video_id = $1
 		AND ca.start_time <= $3
 		AND ca.end_time >= $2
-		GROUP BY ca.character_id, c.name, c.avatar
-		ORDER BY effective_start_time
+		GROUP BY ca.character_id, c.name, c.avatar, ca.start_time, ca.end_time
+		ORDER BY ca.start_time
 	`
 
 	rows, err := s.sc.DB().Raw(query, videoID, startTime, endTime).Rows()
@@ -327,9 +337,9 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 	for rows.Next() {
 		var characterID uuid.UUID
 		var characterName, characterAvatar string
-		var confidence, effectiveStartTime, effectiveEndTime float64
+		var confidence, charStartTime, charEndTime float64
 
-		err := rows.Scan(&characterID, &characterName, &characterAvatar, &confidence, &effectiveStartTime, &effectiveEndTime)
+		err := rows.Scan(&characterID, &characterName, &characterAvatar, &confidence, &charStartTime, &charEndTime)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
@@ -339,13 +349,35 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 			CharacterName:   characterName,
 			CharacterAvatar: characterAvatar,
 			Confidence:      confidence,
-			StartTime:       effectiveStartTime,
-			EndTime:         effectiveEndTime,
+			StartTime:       charStartTime,
+			EndTime:         charEndTime,
 		}
 
 		characters = append(characters, character)
-		fmt.Printf("[DEBUG] Found character %s in range %.1f-%.1f (effective: %.1f-%.1f)\n",
-			characterName, startTime, endTime, effectiveStartTime, effectiveEndTime)
+		fmt.Printf("[DEBUG] Found character %s in range %.1f-%.1f (original: %.1f-%.1f)\n",
+			characterName, startTime, endTime, charStartTime, charEndTime)
+	}
+
+	if len(characters) > 1 {
+		intersectionStart := startTime
+		intersectionEnd := endTime
+
+		for _, char := range characters {
+			if char.StartTime > intersectionStart {
+				intersectionStart = char.StartTime
+			}
+			if char.EndTime < intersectionEnd {
+				intersectionEnd = char.EndTime
+			}
+		}
+
+		if intersectionStart <= intersectionEnd {
+			for i := range characters {
+				characters[i].StartTime = intersectionStart
+				characters[i].EndTime = intersectionEnd
+			}
+			fmt.Printf("[DEBUG] Updated all characters to intersection time: %.1f-%.1f\n", intersectionStart, intersectionEnd)
+		}
 	}
 
 	return characters, nil
@@ -354,7 +386,7 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 // sceneContainsAllRequiredCharacters checks if a scene contains all required characters
 func (s *characterService) sceneContainsAllRequiredCharacters(sceneCharacters []characterModel.VideoSceneCharacter, requiredCharacters []uuid.UUID) bool {
 	if len(requiredCharacters) == 0 {
-		return true // If no specific characters required, accept any scene with characters
+		return true
 	}
 
 	// Create a set of character IDs in the scene
