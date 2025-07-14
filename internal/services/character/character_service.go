@@ -163,7 +163,7 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 	fmt.Printf("[DEBUG] Repository returned time segments: %d\n", len(timeSegments))
 
 	// Merge overlapping segments and find all characters in merged ranges
-	scenes, err := s.mapTimeSegmentsToVideoScenesWithMerging(uuidID, timeSegments)
+	scenes, err := s.mapTimeSegmentsToVideoScenesWithMerging(uuidID, timeSegments, queryParams.IncludeCharacters)
 	if err != nil {
 		fmt.Printf("[DEBUG] Error in mapping segments to scenes: %v\n", err)
 		return nil, err
@@ -199,7 +199,7 @@ func (s *characterService) GetVideoScenesWithCharacters(videoID string, queryPar
 }
 
 // mapTimeSegmentsToVideoScenesWithMerging merges overlapping segments and finds all characters in merged ranges
-func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.UUID, timeSegments []characterModel.TimeSegmentResult) ([]characterModel.VideoScene, error) {
+func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.UUID, timeSegments []characterModel.TimeSegmentResult, requiredCharacters []uuid.UUID) ([]characterModel.VideoScene, error) {
 	if len(timeSegments) == 0 {
 		return []characterModel.VideoScene{}, nil
 	}
@@ -217,8 +217,8 @@ func (s *characterService) mapTimeSegmentsToVideoScenesWithMerging(videoID uuid.
 			return nil, fmt.Errorf("failed to find characters in time range %.1f-%.1f: %w", timeRange.StartTime, timeRange.EndTime, err)
 		}
 
-		// Only create scene if there are characters present
-		if len(sceneCharacters) > 0 {
+		// Only create scene if there are characters present and all required characters are included
+		if len(sceneCharacters) > 0 && s.sceneContainsAllRequiredCharacters(sceneCharacters, requiredCharacters) {
 			scene := characterModel.VideoScene{
 				VideoID:            videoID,
 				SceneID:            fmt.Sprintf("segment_%d_%.1f_%.1f", sceneCounter, timeRange.StartTime, timeRange.EndTime),
@@ -349,6 +349,27 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 	}
 
 	return characters, nil
+}
+
+// sceneContainsAllRequiredCharacters checks if a scene contains all required characters
+func (s *characterService) sceneContainsAllRequiredCharacters(sceneCharacters []characterModel.VideoSceneCharacter, requiredCharacters []uuid.UUID) bool {
+	if len(requiredCharacters) == 0 {
+		return true // If no specific characters required, accept any scene with characters
+	}
+
+	// Create a set of character IDs in the scene
+	sceneCharacterIDs := make(map[uuid.UUID]bool)
+	for _, char := range sceneCharacters {
+		sceneCharacterIDs[char.CharacterID] = true
+	}
+
+	for _, requiredID := range requiredCharacters {
+		if !sceneCharacterIDs[requiredID] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func formatSecondsToTime(seconds float64) string {
