@@ -310,8 +310,8 @@ func (s *characterService) findCharactersInTimeRange(videoID uuid.UUID, startTim
 		FROM character_appearances ca
 		JOIN characters c ON c.id = ca.character_id AND c.is_active = true
 		WHERE ca.video_id = $1
-		AND ca.start_time < $3
-		AND ca.end_time > $2
+		AND ca.start_time <= $3
+		AND ca.end_time >= $2
 		GROUP BY ca.character_id, c.name, c.avatar
 		ORDER BY effective_start_time
 	`

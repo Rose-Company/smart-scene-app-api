@@ -231,7 +231,7 @@ func (r *appearanceRepository) cutOverlapFromSegments(includeSegments, excludeSe
 
 // segmentsOverlap checks if two time segments overlap
 func (r *appearanceRepository) segmentsOverlap(seg1, seg2 character.TimeSegmentResult) bool {
-	return seg1.StartTime < seg2.EndTime && seg2.StartTime < seg1.EndTime
+	return seg1.StartTime <= seg2.EndTime && seg2.StartTime <= seg1.EndTime
 }
 
 // cutSegmentWithExcludes cuts an include segment by removing overlapping portions with exclude segments
